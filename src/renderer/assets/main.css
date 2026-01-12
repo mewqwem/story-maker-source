@@ -1,0 +1,1007 @@
+/* #region 1. VARIABLES & RESET */
+:root {
+  /* --- Colors --- */
+  --bg-app: #0d0d0d; /* Main Background */
+  --bg-sidebar: #161616; /* Sidebar */
+  --bg-surface: #212121; /* Cards/Panels */
+  --bg-input: #1a1a1a; /* Inputs */
+
+  --accent: #7289da; /* Primary Accent */
+  --accent-hover: #5b6eae;
+
+  --text-main: #f2f2f2;
+  --text-muted: #9e9e9e;
+
+  --border: #333333;
+  --border-light: #444444;
+
+  /* --- UI Helpers --- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.3);
+
+  --ease: cubic-bezier(0.23, 1, 0.32, 1); /* Smooth minimalist easing */
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  user-select: none;
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+/* #endregion */
+
+/* #region 2. TITLE BAR */
+#titlebar {
+  height: 40px;
+  background: var(--bg-app);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+}
+
+.window-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+.window-title img {
+  width: 16px;
+  opacity: 0.8;
+}
+
+.window-controls {
+  -webkit-app-region: no-drag;
+  display: flex;
+  gap: 8px;
+}
+
+.window-controls button {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.window-controls button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.window-controls button.close:hover {
+  background: #ff4757;
+}
+/* #endregion */
+
+/* #region 3. LAYOUT & SIDEBAR */
+.app-layout {
+  display: flex;
+  height: calc(100vh - 40px);
+}
+
+.sidebar {
+  width: 250px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 12px;
+}
+
+.sidebar-header .menu-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #555;
+  letter-spacing: 1.2px;
+  margin-bottom: 15px;
+  padding-left: 10px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s var(--ease);
+  width: 100%;
+  text-align: left;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-main);
+  transform: translateX(3px);
+}
+
+.nav-item.active {
+  background: var(--bg-surface);
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  text-align: center;
+  color: #333;
+  font-size: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #222;
+}
+/* #endregion */
+
+/* #region 4. MAIN CONTENT & VIEWS */
+.content-view {
+  flex: 1;
+  padding: 30px 40px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.view {
+  display: none;
+  animation: fadeSlideUp 0.4s var(--ease);
+}
+.view.active {
+  display: block;
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.view-header {
+  margin-bottom: 25px;
+}
+.view-header h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.view-header .description {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+/* #endregion */
+
+/* #region 5. UI COMPONENTS (Buttons, Inputs) */
+/* Inputs */
+input[type='text'],
+input[type='number'],
+input[type='password'],
+textarea,
+select {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  user-select: text;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+}
+
+/* Buttons */
+button {
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  box-shadow: 0 4px 15px rgba(114, 137, 218, 0.2);
+  transition: all 0.2s var(--ease);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(114, 137, 218, 0.3);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+.btn-secondary:hover {
+  border-color: var(--text-muted);
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.btn-icon {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+.btn-icon:hover {
+  color: #fff;
+  border-color: #555;
+}
+.btn-icon.danger:hover {
+  color: #ff4757;
+  border-color: #ff4757;
+}
+/* #endregion */
+
+/* #region 6. GENERATOR PAGE */
+.generator-container {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.step-card {
+  flex: 1 1 300px; /* Minimalist responsive flex */
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s;
+}
+.step-card:hover {
+  border-color: var(--border-light);
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #333;
+}
+.step-badge {
+  background: var(--bg-input);
+  color: var(--accent);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(114, 137, 218, 0.3);
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+.form-group label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.templates-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  background: var(--bg-input);
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.template-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 10px;
+  border-radius: 4px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s;
+}
+.template-btn:hover {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-main);
+}
+.template-btn.active {
+  background: rgba(114, 137, 218, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.generator-actions {
+  margin-top: 30px;
+  text-align: center;
+}
+.btn-cta {
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  height: 50px;
+  font-size: 15px;
+}
+#status-line {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #555;
+}
+/* #endregion */
+
+/* #region 7. LIBRARY PAGE */
+.library-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 4px;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  width: fit-content;
+  border: 1px solid var(--border);
+}
+
+.lib-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.lib-tab-btn:hover {
+  color: var(--text-main);
+}
+.lib-tab-btn.active {
+  background: var(--bg-surface);
+  color: var(--text-main);
+  box-shadow: var(--shadow-sm);
+}
+
+/* --- LIBRARY PANELS --- */
+.library-content-container {
+  position: relative;
+}
+
+.lib-panel {
+  display: none;
+  animation: fadeIn 0.3s var(--ease);
+}
+.lib-panel.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.library-grid-layout {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 20px;
+  height: 550px; /* Трохи збільшив висоту */
+}
+
+.panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-header {
+  padding: 15px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.panel-body {
+  padding: 20px; /* ВАЖЛИВО: Загальний відступ всередині панелі */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: hidden; /* Скрол має бути тільки у списках */
+}
+
+/* --- Voice Panel Specifics (ВИПРАВЛЕНО) --- */
+.add-voice-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Відступ між елементами форми */
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Вирівнювання рядка інпутів */
+.add-voice-form .input-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Список голосів (ВИПРАВЛЕНО) */
+.scroll-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 5px; /* Щоб скролбар не налізав */
+}
+
+.voice-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.voice-list li {
+  background: var(--bg-input);
+  padding: 12px 16px; /* ВАЖЛИВО: Падінги всередині елемента списку */
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.voice-list li:hover {
+  border-color: var(--border-light);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Контейнер всередині li, який розкидає текст і кнопку */
+.fav-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Текст зліва, хрестик справа */
+  width: 100%;
+}
+
+.fav-chip strong {
+  font-weight: 500;
+  color: var(--text-main);
+  font-size: 13px;
+}
+
+.fav-chip button {
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.fav-chip button:hover {
+  color: #ff4757; /* Червоний при наведенні */
+  background: rgba(255, 71, 87, 0.1);
+}
+
+/* --- Prompt Editor Layout (Залишаємо як було) --- */
+.prompt-editor-container {
+  display: flex;
+  height: 100%;
+}
+.prompt-list-col {
+  width: 220px;
+  background: #181818;
+  border-right: 1px solid var(--border);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.keys-list {
+  list-style: none;
+  margin-top: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+.prompt-key-item {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #888; /* Збільшив падінг */
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  transition: all 0.2s;
+}
+.prompt-key-item:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  padding-left: 16px;
+}
+.prompt-key-item.active {
+  color: var(--accent);
+  background: rgba(114, 137, 218, 0.1);
+  font-weight: 600;
+}
+
+.prompt-edit-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.editor-toolbar {
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  background: #1d1d1d;
+  align-items: center;
+}
+.editor-toolbar input {
+  background: transparent;
+  border: none;
+  font-weight: bold;
+  padding: 0;
+  color: var(--text-main);
+}
+#editPromptText,
+#editSeoPromptText {
+  flex: 1;
+  resize: none;
+  border: none;
+  padding: 20px;
+  background: #151515;
+  font-family: 'Consolas', monospace;
+  line-height: 1.6;
+  color: #ccc;
+  outline: none;
+}
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  z-index: 5;
+}
+.overlay.hidden {
+  display: none;
+}
+.btn-text {
+  color: white;
+  background: transparent;
+  cursor: pointer;
+  border: none;
+
+  transition:
+    transform 300ms ease,
+    color 300ms ease;
+}
+.btn-text:hover,
+.btn-text:focus {
+  color: red;
+  transform: scale(1.1);
+}
+/* #endregion */
+
+/* #region 8. SETTINGS & HISTORY */
+.settings-group {
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+
+.accordion-trigger {
+  padding: 18px 20px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 500;
+  transition: background 0.2s;
+  user-select: none;
+}
+.accordion-trigger:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ВАЖЛИВО: Виправлені падінги для розкритого блоку */
+.accordion-body {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: all 0.3s var(--ease);
+  background: #181818; /* Трохи темніший фон всередині */
+  border-top: 1px solid transparent;
+}
+
+/* Коли блок відкритий (цей стиль додається через JS, але падінг задаємо тут для дочірніх елементів) */
+.accordion-body > * {
+  padding: 0 20px 20px 20px; /* Відступи з боків і знизу */
+}
+/* Оскільки accordion-body має max-height, краще давати падінг обгорткам або самим елементам, 
+   але найпростіший спосіб, щоб уникнути стрибків анімації - додати падінг самому .accordion-body, 
+   але тільки коли він активний. Проте, щоб не ламати JS анімацію висоти, 
+   ми додамо відступи самим групам форми всередині */
+
+.accordion-body .form-group {
+  padding: 0 20px; /* Відступи зліва/справа */
+  margin-bottom: 20px;
+}
+/* Перший елемент має відступ зверху */
+.accordion-body .form-group:first-child {
+  padding-top: 20px;
+}
+
+/* --- Password Eye Fix (ВИПРАВЛЕНО) --- */
+.password-wrapper {
+  position: relative; /* Щоб око позиціювалось відносно цього блоку */
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrapper input {
+  padding-right: 40px; /* Місце для іконки ока, щоб текст не налізав */
+  width: 100%;
+}
+
+.toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%); /* Центрування по вертикалі */
+  color: #666;
+  cursor: pointer;
+  font-size: 14px;
+  z-index: 2;
+  transition: color 0.2s;
+  background: transparent;
+  border: none;
+  padding: 4px; /* Збільшуємо зону кліку */
+}
+
+.toggle-btn:hover {
+  color: var(--accent); /* Підсвітка при наведенні */
+}
+
+/* Відступ кнопки Save від інпуту */
+.form-group button.btn-secondary {
+  margin-top: 10px;
+}
+
+/* Toggle Switch Groups (без змін, але для цілісності регіону) */
+.toggle-switch-group {
+  display: flex;
+  background: var(--bg-input);
+  padding: 4px;
+  border-radius: 4px;
+  width: fit-content;
+  border: 1px solid var(--border);
+}
+.toggle-option {
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: #777;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.toggle-option:hover {
+  color: #fff;
+}
+.toggle-option.active {
+  background: #333;
+  color: #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* History Grid */
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 15px;
+}
+.history-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  padding: 15px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    border-color 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.history-item strong {
+  color: var(--text-main);
+  font-size: 13px;
+}
+.history-item small {
+  color: #666;
+  font-size: 11px;
+}
+
+.history-item:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+/* #endregion */
+
+/* #region 9. STATUS, TOAST & MODAL */
+/* Status Indicator */
+.status-area {
+  position: relative;
+  -webkit-app-region: no-drag;
+  margin-right: 15px;
+}
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #333;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+}
+.status-indicator i {
+  display: none;
+} /* Hide icon for cleaner look */
+.status-indicator.idle {
+  background: #555;
+}
+.status-indicator.processing {
+  background: var(--accent);
+  animation: pulse 1.5s infinite;
+}
+.status-indicator.success {
+  background: #4caf50;
+}
+.status-indicator.warning {
+  background: #f1c40f;
+}
+.status-indicator.error {
+  background: #ff4757;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(114, 137, 218, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(114, 137, 218, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(114, 137, 218, 0);
+  }
+}
+
+.status-popover {
+  position: absolute;
+  top: 30px;
+  right: -5px;
+  width: 280px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 15px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.status-popover.hidden {
+  display: none;
+}
+.log-item {
+  font-size: 11px;
+  padding: 4px 0;
+  border-bottom: 1px solid #333;
+  color: #888;
+}
+
+/* Toast */
+#toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  box-shadow: var(--shadow-lg);
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border-left: 3px solid var(--accent);
+}
+@keyframes slideIn {
+  from {
+    transform: translateX(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.modal-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  transform: scale(0.95);
+  transition: transform 0.3s var(--ease);
+}
+.modal-backdrop.show .modal-card {
+  transform: scale(1);
+}
+.modal-head {
+  background: var(--bg-input);
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.modal-body {
+  padding: 20px;
+}
+.modal-foot {
+  padding: 15px 20px;
+  background: var(--bg-input);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+}
+/* #endregion */
+/* --- FIX INPUT ROW LAYOUT --- */
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.input-row input {
+  flex: 1; /* Займає весь доступний простір */
+  min-width: 0; /* Дозволяє зменшуватися, щоб не виштовхувати кнопку */
+  z-index: 1;
+}
+
+.input-row .btn-icon {
+  flex-shrink: 0; /* Забороняє кнопці стискатися */
+  position: relative;
+  z-index: 2; /* Піднімає кнопку над іншими елементами */
+  cursor: pointer;
+}

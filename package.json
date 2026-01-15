@@ -4,7 +4,7 @@
   "description": "YwH program to create stories using Gemini AI and convert them to speech using TTS.",
   "main": "./out/main/index.js",
   "author": "Oleg",
-  "homepage": "https://github.com/mewqwem/story-maker-releases",
+  "homepage": "https://github.com/mewqwem/story-maker-source",
   "scripts": {
     "format": "prettier --write .",
     "dev": "electron-vite dev",
@@ -35,7 +35,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mewqwem/story-maker-releases"
+    "url": "https://github.com/mewqwem/story-maker-source"
   },
   "build": {
     "appId": "com.oleg.storygen",
@@ -48,14 +48,11 @@
       "out/**/*",
       "!**/*.map"
     ],
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "mewqwem",
-        "repo": "story-maker-releases",
-        "releaseType": "release"
-      }
-    ],
+    "publish": {
+      "provider": "github",
+      "owner": "mewqwem",
+      "repo": "story-maker-source"
+    },
     "win": {
       "target": "nsis",
       "icon": "resources/icon.ico",
@@ -67,6 +64,11 @@
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false,
       "shortcutName": "StoryMaker"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "resources/icon.icns",
+      "artifactName": "${productName}-${version}-mac.${ext}"
     }
   }
 }

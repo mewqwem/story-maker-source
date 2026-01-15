@@ -1,0 +1,51 @@
+name: Build Binaries
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # Build for Windows and macOS simultaneously
+        os: [windows-latest, macos-latest]
+
+    steps:
+      # 1. Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # 4. Build the source code (Vite)
+      - name: Compile Source
+        run: npm run build
+
+      # 5. Build the App (Electron Builder)
+      # We run electron-builder directly to avoid the 'publish' step defined in package.json scripts
+      - name: Build Electron App
+        run: |
+          npx electron-builder --config package.json
+
+      # 6. Upload Artifacts (so you can download them)
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: story-maker-${{ matrix.os }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+          retention-days: 5

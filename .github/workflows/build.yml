@@ -11,36 +11,32 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # Build for Windows and macOS simultaneously
         os: [windows-latest, macos-latest]
 
     steps:
-      # 1. Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
-      # 3. Install dependencies
       - name: Install dependencies
         run: npm install
 
-      # 4. Build the source code (Vite)
+      # КРОК 1: Компілюємо вихідний код (Vite)
       - name: Compile Source
         run: npm run build
 
-      # 5. Build the App (Electron Builder)
-      # We run electron-builder directly to avoid the 'publish' step defined in package.json scripts
+      # КРОК 2: Збираємо програму (Electron Builder)
+      # ВИПРАВЛЕНО: Прибрали зайвий прапорець --config
+      # Додали --publish never, щоб він просто створив файл, а не намагався його кудись залити
       - name: Build Electron App
-        run: |
-          npx electron-builder --config package.json
+        run: npx electron-builder --publish never
 
-      # 6. Upload Artifacts (so you can download them)
+      # КРОК 3: Завантажуємо результат, щоб ти міг його скачати
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:

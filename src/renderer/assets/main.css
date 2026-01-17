@@ -117,16 +117,23 @@ body {
 /* #region 3. LAYOUT & SIDEBAR */
 .app-layout {
   display: flex;
-  height: calc(100vh - 40px);
+  height: calc(100vh - 36px); /* Це ОК для додатків */
+  width: 100%;
+  overflow: hidden; /* Ховаємо те, що вилазить за межі контейнера */
 }
 
 .sidebar {
   width: 250px;
+  /* Add these lines to fix the sidebar width */
+  min-width: 250px; /* Prevent sidebar from becoming smaller than 250px */
+  flex-shrink: 0; /* Explicitly tell Flexbox NOT to shrink this item */
+
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   padding: 20px 12px;
+  z-index: 10; /* Ensure sidebar stays on top visually if overlap occurs */
 }
 
 .sidebar-header .menu-label {
@@ -181,9 +188,9 @@ body {
 /* #region 4. MAIN CONTENT & VIEWS */
 .content-view {
   flex: 1;
-  padding: 30px 40px;
-  overflow-y: auto;
-  position: relative;
+  height: 100%; /* Займає всю висоту батька */
+  overflow-y: auto; /* <--- ОСЬ ЦЕ ГОЛОВНЕ: вмикає скрол, якщо контент довгий */
+  padding: 40px 40px 100px 40px; /* Великий відступ знизу, щоб контент не прилипав */
 }
 
 .view {

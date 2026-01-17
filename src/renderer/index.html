@@ -124,6 +124,28 @@
               </div>
               <input type="hidden" id="selectedSeoTemplate" />
             </div>
+            <div class="step-card full-height">
+              <div class="step-header">
+                <div class="step-badge">5</div>
+                <h3>Visual Settings</h3>
+              </div>
+
+              <div class="form-group" style="padding: 0 15px; margin-bottom: 15px">
+                <label>Total Images</label>
+                <input type="number" id="totalImagesCount" value="15" min="1" max="100" />
+              </div>
+
+              <div class="step-header" style="border: none; padding-top: 0; padding-bottom: 5px">
+                <h4 style="font-size: 12px; color: #888; text-transform: uppercase">
+                  Select Style Template
+                </h4>
+              </div>
+
+              <div id="image-templates-container" class="templates-grid" style="height: 180px">
+                <p class="empty-msg">No styles loaded.</p>
+              </div>
+              <input type="hidden" id="selectedImageTemplate" />
+            </div>
           </div>
 
           <div class="generator-actions">
@@ -150,6 +172,9 @@
             </button>
             <button class="lib-tab-btn" data-lib-target="lib-seo">
               <i class="fa-solid fa-magnifying-glass-chart"></i> SEO Prompts
+            </button>
+            <button class="lib-tab-btn" data-lib-target="lib-images">
+              <i class="fa-solid fa-image"></i> Image Styles
             </button>
           </div>
 
@@ -195,7 +220,6 @@
               <div class="panel prompt-panel" style="height: 500px">
                 <div class="panel-header with-actions">
                   <span>Story Templates</span>
-                  <button id="btnSelectJsonLibrary" class="btn-secondary btn-sm">Load JSON</button>
                 </div>
                 <div class="prompt-editor-container">
                   <div class="prompt-list-col">
@@ -225,9 +249,6 @@
               <div class="panel prompt-panel" style="height: 500px">
                 <div class="panel-header with-actions">
                   <span>SEO Templates</span>
-                  <button id="btnSelectSeoJsonLibrary" class="btn-secondary btn-sm">
-                    Load SEO JSON
-                  </button>
                 </div>
                 <div class="prompt-editor-container">
                   <div class="prompt-list-col">
@@ -250,6 +271,43 @@
                       </div>
                     </div>
                     <textarea id="editSeoPromptText"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="lib-images" class="lib-panel">
+              <div class="panel prompt-panel" style="height: 500px">
+                <div class="panel-header with-actions">
+                  <span>Image Style Templates</span>
+                </div>
+                <div class="prompt-editor-container">
+                  <div class="prompt-list-col">
+                    <button id="btnNewImagePrompt" class="btn-secondary full-width">
+                      + New Style
+                    </button>
+                    <ul id="imagePromptKeysList" class="keys-list"></ul>
+                  </div>
+                  <div class="prompt-edit-col">
+                    <div id="imageEditorOverlay" class="overlay">Select a style key</div>
+                    <div class="editor-toolbar">
+                      <input
+                        type="text"
+                        id="editImagePromptKey"
+                        placeholder="Key Name (e.g. Horror)"
+                      />
+                      <div class="tool-btns">
+                        <button id="btnDeleteImagePrompt" class="btn-icon danger">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                        <button id="btnSaveImagePrompt" class="btn-icon primary">
+                          <i class="fa-solid fa-floppy-disk"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      id="editImagePromptText"
+                      placeholder="Enter image prompt description..."
+                    ></textarea>
                   </div>
                 </div>
               </div>
@@ -319,26 +377,20 @@
               </div>
               <div class="accordion-body">
                 <div class="form-group">
-                  <label>Story Prompts File</label>
+                  <label>Master Library File (.json)</label>
                   <div class="input-row">
-                    <input type="text" id="promptFileDisplay" readonly />
-                    <button id="btnSelectJson" class="btn-icon">
-                      <i class="fa-solid fa-folder"></i>
+                    <input
+                      type="text"
+                      id="masterLibraryDisplay"
+                      readonly
+                      placeholder="Select library.json..."
+                    />
+                    <button id="btnSelectMasterLibrary" class="btn-icon">
+                      <i class="fa-solid fa-database"></i>
                     </button>
                   </div>
                 </div>
-
-                <div class="form-group">
-                  <label>SEO Prompts File</label>
-                  <div class="input-row">
-                    <input type="text" id="seoPromptFileDisplay" readonly />
-                    <button id="btnSelectSeoJson" class="btn-icon">
-                      <i class="fa-solid fa-folder"></i>
-                    </button>
-                  </div>
-                </div>
-
-                <div class="form-group">
+                <div class="form-group mt-2">
                   <label>Output Folder</label>
                   <div class="input-row">
                     <input type="text" id="outputFolderDisplay" readonly />
@@ -347,20 +399,17 @@
                     </button>
                   </div>
                 </div>
+
                 <div class="form-group">
                   <label>Edge TTS Path</label>
                   <input type="text" id="edgeTtsPathInput" />
                   <button id="btnSaveEdgePath" class="btn-secondary mt-1">Save Path</button>
                 </div>
+
                 <div class="form-group mt-2">
                   <label>FFmpeg Path (.exe)</label>
                   <div class="input-row">
-                    <input
-                      type="text"
-                      id="ffmpegPathDisplay"
-                      placeholder="Select ffmpeg.exe..."
-                      readonly
-                    />
+                    <input type="text" id="ffmpegPathDisplay" readonly />
                     <button id="btnSelectFFmpeg" class="btn-icon">
                       <i class="fa-solid fa-file-video"></i>
                     </button>

@@ -1,5 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs-extra'
 import { GoogleGenerativeAI } from '@google/generative-ai'
@@ -29,25 +29,24 @@ let mainWindow
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
-    height: 850,
+    height: 750,
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#121417',
-    show: false, // Wait until ready-to-show
+    show: false,
     frame: true,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon: join(__dirname, '../../build/icon.png') } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
-      nodeIntegration: false, // Security best practice
-      contextIsolation: true // Security best practice
+      nodeIntegration: false,
+      contextIsolation: true
     }
   })
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
-    // Trigger update check slightly after startup
     setTimeout(() => {
       autoUpdater.checkForUpdatesAndNotify()
     }, 2000)
@@ -58,7 +57,6 @@ function createWindow() {
     return { action: 'deny' }
   })
 
-  // Load renderer (HMR in dev, file in prod)
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -89,7 +87,6 @@ app.on('window-all-closed', () => {
 })
 
 // --- AUTO UPDATER EVENTS ---
-
 autoUpdater.on('checking-for-update', () => sendStatus('checking', 'Checking...'))
 autoUpdater.on('update-available', () => sendStatus('downloading', 'Update found. Downloading...'))
 autoUpdater.on('download-progress', (progress) => {
@@ -106,13 +103,11 @@ autoUpdater.on('error', (err) => {
 
 function sendStatus(state, msg) {
   if (mainWindow) {
-    // We can reuse the 'log-update' channel or a specific status channel if implemented in UI
     mainWindow.webContents.send('log-update', `ℹ️ Updater: ${msg}`)
   }
 }
 
 // --- IPC HANDLERS: SETTINGS & FILES ---
-
 ipcMain.handle('get-setting', (event, key) => store.get(key, null))
 ipcMain.handle('save-setting', (event, key, value) => {
   store.set(key, value)
@@ -120,9 +115,7 @@ ipcMain.handle('save-setting', (event, key, value) => {
 })
 
 ipcMain.handle('select-folder', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory']
-  })
+  const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] })
   return result.canceled ? null : result.filePaths[0]
 })
 
@@ -131,11 +124,7 @@ ipcMain.handle('select-file', async (event, extensions = []) => {
     extensions.length > 0
       ? [{ name: 'Custom Files', extensions }]
       : [{ name: 'All Files', extensions: ['*'] }]
-
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile'],
-    filters
-  })
+  const result = await dialog.showOpenDialog(mainWindow, { properties: ['openFile'], filters })
   return result.canceled ? null : result.filePaths[0]
 })
 
@@ -161,27 +150,42 @@ ipcMain.handle('write-json', async (e, filePath, data) => {
 ipcMain.handle('get-version', () => app.getVersion())
 
 // --- IPC HANDLERS: HISTORY ---
-
 ipcMain.handle('get-history', () => store.get('generationHistory', []))
-
 ipcMain.handle('clear-history', () => {
   store.set('generationHistory', [])
   return true
 })
-
 ipcMain.handle('open-folder', async (e, path) => {
   await shell.openPath(path)
 })
 
-// --- HELPER FUNCTIONS FOR GENERATION ---
+// --- HELPER FUNCTIONS ---
 
 const sendLog = (msg) => {
   if (mainWindow) mainWindow.webContents.send('log-update', msg)
 }
 
+// Отримання тривалості аудіо
+async function getAudioDuration(audioPath, ffmpegPath) {
+  try {
+    let ffprobeCmd = 'ffprobe'
+    if (ffmpegPath && ffmpegPath.toLowerCase().includes('ffmpeg')) {
+      ffprobeCmd = ffmpegPath.replace(/ffmpeg(?:\.exe)?$/i, 'ffprobe.exe')
+    }
+    ffprobeCmd = ffprobeCmd.replace(/"/g, '')
+
+    const cmd = `"${ffprobeCmd}" -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioPath}"`
+    const { stdout } = await execPromise(cmd)
+    const duration = parseFloat(stdout.trim())
+    return isNaN(duration) ? 300 : duration
+  } catch (e) {
+    console.warn('FFprobe failed (using default 300s):', e.message)
+    return 300
+  }
+}
+
 async function generateElevenLabsImage(prompt, token, outputPath) {
   try {
-    sendLog('🎨 11Labs: Creating image...')
     const cleanToken = token.trim()
     const response = await axios.post(
       `${IMAGE_API_URL}/image/create?as_file=true`,
@@ -196,19 +200,14 @@ async function generateElevenLabsImage(prompt, token, outputPath) {
       }
     )
     await fs.writeFile(outputPath, response.data)
-    sendLog('📥 Image saved successfully!')
   } catch (error) {
     console.error('11Labs Error:', error.message)
-    if (error.response && error.response.data) {
-      const msg = Buffer.from(error.response.data).toString()
-      sendLog(`⚠️ API Error: ${msg}`)
-    }
     throw error
   }
 }
 
 async function downloadPollinationsImage(prompt, outputPath) {
-  const seed = Math.floor(Math.random() * 100000)
+  const seed = Math.floor(Math.random() * 1000000)
   const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(
     prompt
   )}?width=1280&height=720&model=flux&seed=${seed}&nologo=true`
@@ -229,21 +228,10 @@ async function downloadPollinationsImage(prompt, outputPath) {
 
 async function generateGenAiAudio(text, voiceId, token, outputPath) {
   sendLog('🎙️ GenAI: Sending text...')
-
   const createRes = await axios.post(
     `${GENAI_API_URL}/labs/task`,
-    {
-      input: text,
-      voice_id: voiceId,
-      model_id: 'eleven_multilingual_v2',
-      speed: 1.0
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    }
+    { input: text, voice_id: voiceId, model_id: 'eleven_multilingual_v2', speed: 1.0 },
+    { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
   )
 
   const taskId = createRes.data.task_id
@@ -251,35 +239,22 @@ async function generateGenAiAudio(text, voiceId, token, outputPath) {
 
   let audioUrl = null
   let attempts = 0
-
-  // Polling loop
   while (attempts < 600) {
     await sleep(2000)
     const statusRes = await axios.get(`${GENAI_API_URL}/labs/task/${taskId}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-
     const status = statusRes.data.status
-    sendLog(`GenAI: Processing... (${status})`)
-
     if (status === 'completed') {
       audioUrl = statusRes.data.result
       break
-    } else if (status === 'failed') {
-      throw new Error('GenAI Task Failed')
-    }
+    } else if (status === 'failed') throw new Error('GenAI Task Failed')
     attempts++
   }
-
   if (!audioUrl) throw new Error('GenAI: Timeout')
 
   const writer = fs.createWriteStream(outputPath)
-  const response = await axios({
-    url: audioUrl,
-    method: 'GET',
-    responseType: 'stream'
-  })
-
+  const response = await axios({ url: audioUrl, method: 'GET', responseType: 'stream' })
   response.data.pipe(writer)
   return new Promise((resolve, reject) => {
     writer.on('finish', resolve)
@@ -287,170 +262,197 @@ async function generateGenAiAudio(text, voiceId, token, outputPath) {
   })
 }
 
+// --- LOGIC FOR VIDEO LOOPING (FIXED RELATIVE PATHS) ---
 async function createVideoFromProject(folderPath) {
   try {
-    const audioPath = join(folderPath, 'audio.mp3')
+    const audioName = 'audio.mp3'
+    const videoName = 'video.mp4'
+    const audioPath = join(folderPath, audioName)
     const imagesDir = join(folderPath, 'images')
-    const videoOutputPath = join(folderPath, 'video.mp4')
 
     if (!fs.existsSync(audioPath)) throw new Error('Audio not found!')
 
-    // Resolve FFmpeg path: Use custom path if set, otherwise assume system 'ffmpeg'
     let ffmpegCmd = store.get('customFfmpegPath') || 'ffmpeg'
-
-    // Remove quotes if present to avoid errors in exec
     ffmpegCmd = ffmpegCmd.replace(/"/g, '')
 
-    const slideDuration = 20
-    const fadeDuration = 1
+    // 1. Get Audio Duration
+    sendLog('🎬 Analyzing audio length...')
+    const audioDuration = await getAudioDuration(audioPath, ffmpegCmd)
+    sendLog(`ℹ️ Audio Duration: ${audioDuration}s`)
 
-    // 1. Get Images
+    // 2. Get Images
+    if (!fs.existsSync(imagesDir)) throw new Error('Images folder missing!')
     const files = await fs.readdir(imagesDir)
-    const images = files
+    const uniqueImages = files
       .filter((f) => f.endsWith('.jpg') || f.endsWith('.png'))
       .sort((a, b) => (parseInt(a.match(/\d+/)) || 0) - (parseInt(b.match(/\d+/)) || 0))
 
-    if (images.length === 0) throw new Error('No images found!')
+    if (uniqueImages.length === 0) throw new Error('No images found!')
 
-    sendLog(`🎬 Images detected: ${images.length}`)
+    sendLog(`🎬 Found ${uniqueImages.length} images for video.`)
 
-    // 2. Build Inputs
-    let inputs = ''
-    images.forEach((img) => {
-      // Use forward slashes for cross-platform ffmpeg compatibility
-      const p = join(imagesDir, img).replace(/\\/g, '/')
-      inputs += `-loop 1 -t ${slideDuration} -i "${p}" `
-    })
+    const execOptions = { cwd: folderPath }
 
-    // 3. Build Filter Complex (XFade)
-    let filter = ''
-    let lastLabel = '[0:v]'
-    let offset = slideDuration - fadeDuration
+    // --- CASE A: SINGLE IMAGE ---
+    if (uniqueImages.length === 1) {
+      const relImgPath = `images/${uniqueImages[0]}`
+      const command = `"${ffmpegCmd}" -y -loop 1 -i "${relImgPath}" -i "${audioName}" -c:v libx264 -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest "${videoName}"`
 
-    for (let i = 1; i < images.length; i++) {
-      const nextLabel = `[v${i}]`
-      filter += `${lastLabel}[${i}:v]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}${nextLabel};`
-      lastLabel = nextLabel
-      offset += slideDuration - fadeDuration
+      sendLog('🎬 Rendering single-image video...')
+      await execPromise(command, execOptions)
+
+      // --- CASE B: MULTIPLE IMAGES (SLIDESHOW) ---
+    } else {
+      const slideDuration = 20
+      const fadeDuration = 1
+      const effectiveSlideTime = slideDuration - fadeDuration
+      const totalSlidesNeeded = Math.ceil(audioDuration / effectiveSlideTime) + 1
+
+      sendLog(`🎬 Rendering slideshow: need ${totalSlidesNeeded} slides loop...`)
+
+      let inputFilesList = []
+      for (let i = 0; i < totalSlidesNeeded; i++) {
+        const imgIndex = i % uniqueImages.length
+        inputFilesList.push(`images/${uniqueImages[imgIndex]}`)
+      }
+
+      let inputs = ''
+      inputFilesList.forEach((p) => {
+        inputs += `-loop 1 -t ${slideDuration} -i "${p}" `
+      })
+
+      let filter = ''
+      let lastLabel = '[0:v]'
+      let offset = slideDuration - fadeDuration
+
+      for (let i = 1; i < inputFilesList.length; i++) {
+        const nextLabel = `[${i}:v]`
+        const outLabel = `[v${i}]`
+        filter += `${lastLabel}${nextLabel}xfade=transition=fade:duration=${fadeDuration}:offset=${offset}${outLabel};`
+        lastLabel = outLabel
+        offset += slideDuration - fadeDuration
+      }
+
+      // --- ВИПРАВЛЕННЯ ТУТ ---
+      // Раніше ми обрізали ';' і ставили комою, що ламало потік.
+      // Тепер ми явно беремо lastLabel і передаємо його у format.
+      // Результат буде виглядати як: ...[v15];[v15]format=yuv420p[v]
+
+      filter += `${lastLabel}format=yuv420p[v]`
+
+      const command = `"${ffmpegCmd}" -y ${inputs} -i "${audioName}" -filter_complex "${filter}" -map "[v]" -map ${inputFilesList.length}:a -c:v libx264 -c:a aac -shortest "${videoName}"`
+
+      await execPromise(command, execOptions)
     }
-    filter += `${lastLabel}format=yuv420p[v]`
 
-    sendLog('🎬 Rendering video (this might take a while)...')
-
-    const command = `"${ffmpegCmd}" -y ${inputs} -i "${audioPath}" -filter_complex "${filter}" -map "[v]" -map ${images.length}:a -c:v libx264 -c:a aac -shortest "${videoOutputPath}"`
-
-    await execPromise(command)
     sendLog('🚀 Video Rendered Successfully: video.mp4')
   } catch (err) {
     sendLog(`⚠️ Video Render Error: ${err.message}`)
     console.error(err)
-    // We don't throw here to allow the process to "finish" even if video fails
+    if (err.stdout) console.log(err.stdout)
+    if (err.stderr) console.error(err.stderr)
   }
 }
 
 // --- IPC HANDLERS: GENERATION FLOW ---
 
-// STAGE 1: Text Generation
 ipcMain.handle('generate-story-text', async (event, data) => {
-  const {
-    projectName,
-    templateText,
-    seoPrompt,
-    title,
-    language,
-    outputFolder,
-    modelName,
-    targetLength
-  } = data
+  const { projectName, seoPrompt, title, language, outputFolder, modelName, targetLength } = data
 
   try {
     const apiKey = store.get('apiKey')
-    if (!apiKey) throw new Error('Gemini API Key is missing in settings.')
+    if (!apiKey) throw new Error('Gemini API Key is missing.')
 
     const genAI = new GoogleGenerativeAI(apiKey)
     const selectedModel = modelName || 'gemini-2.0-flash'
     const model = genAI.getGenerativeModel({ model: selectedModel })
 
-    // Store model for Stage 2
-    store.set('tempModelName', selectedModel)
+    // --- САНІТАРИЗАЦІЯ ПАПКИ ---
+    // Видаляємо все, крім англійських літер, цифр та підкреслення.
+    // Замінюємо пробіли на підкреслення.
+    const safeProjectName = projectName
+      .replace(/[а-яА-ЯіІїЇєЄґҐ]/g, 'ua') // примітивна транслітерація
+      .replace(/[^a-zA-Z0-9]/g, '_')
 
-    // Create Directory
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-    const folderName = `${projectName}_${timestamp}`
+    const folderName = `${safeProjectName}_${timestamp}`
     const finalPath = join(outputFolder, folderName)
+
     await fs.ensureDir(finalPath)
 
-    // Initialize Chat
-    const chat = model.startChat({ history: [] })
-    const TARGET_LENGTH = targetLength || 25000
+    sendLog('📋 Generating Story Outline...')
 
-    let currentMsg =
-      templateText.replace('{TITLE}', title).replace('{LANGUAGE}', language) +
-      `\n\n[SYSTEM: Target length: ${TARGET_LENGTH} chars. Write PART 1 (3000-4000 chars). NO MARKDOWN.]`
+    const outlinePrompt = `
+      You are an elite Story Architect.
+      INPUT: Title: "${title}", Length: ${targetLength}, Lang: ${language}
+      TASK: Create a JSON chapter plan.
+      FORMAT: { "plan": [{ "id": 1, "type": "...", "description": "...", "estimated_chars": 2000 }] }
+      RETURN JSON ONLY.
+    `
+    const outlineResult = await model.generateContent(outlinePrompt)
+    const outlineText = outlineResult.response
+      .text()
+      .replace(/```json|```/g, '')
+      .trim()
+
+    let planArray = []
+    try {
+      const parsed = JSON.parse(outlineText)
+      planArray = parsed.plan || []
+      await fs.writeJson(join(finalPath, 'outline.json'), parsed, { spaces: 2 })
+    } catch (e) {
+      throw new Error('Invalid Outline JSON')
+    }
+
+    const chat = model.startChat({ history: [] })
+    await chat.sendMessage(`SYSTEM: Write ONLY story text. Lang: ${language}. No markdown headers.`)
 
     let fullStoryText = ''
-    let part = 1
+    for (let i = 0; i < planArray.length; i++) {
+      const part = planArray[i]
+      sendLog(`✍️ Writing Part ${part.id}/${planArray.length}...`)
 
-    // Writing Loop
-    while (true) {
-      sendLog(`✍️ Writing Part ${part} (Total: ${fullStoryText.length} chars)...`)
+      const targetWords = Math.round((part.estimated_chars || 1500) / 6)
+      const strictPrompt = `
+        Write Part ${part.id}.
+        Plot details: ${part.description}.
+        CRITICAL CONSTRAINT: Write approximately ${targetWords} words.
+        DO NOT write too much. Keep it concise.
+      `
 
-      const result = await chat.sendMessage(currentMsg)
-      const text = result.response.text()
-
-      // Basic cleanup
-      let cleanPart = text
-        .replace(/```[a-z]*\n?|```/g, '')
-        .replace(/(\*\*|__)(.*?)\1/g, '$2') // bold
-        .replace(/(\*|_)(.*?)\1/g, '$2') // italic
-        .trim()
-
-      if (cleanPart) fullStoryText += cleanPart + '\n\n'
-
-      const currentLen = fullStoryText.length
-
-      // Check exit conditions
-      if (currentLen >= TARGET_LENGTH * 0.95 || part >= 40 || text.includes('END')) {
-        if (!text.includes('END') && currentLen < TARGET_LENGTH) {
-          currentMsg = "Finish the story now. Write the ending and 'END'."
-        } else {
+      let retries = 3
+      while (retries > 0) {
+        try {
+          const res = await chat.sendMessage(strictPrompt)
+          let txt = res.response
+            .text()
+            .replace(/```[a-z]*\n?|```/g, '')
+            .replace(/(\*\*|__)(.*?)\1/g, '$2')
+            .replace(/^Part \d+[:.]?/im, '')
+            .trim()
+          fullStoryText += txt + '\n\n'
+          await sleep(2000)
           break
+        } catch (err) {
+          retries--
+          if (retries === 0) throw err
+          await sleep(5000)
         }
-      } else {
-        part++
-        const remaining = TARGET_LENGTH - currentLen
-        currentMsg = `Continue (Part ${part}). Need ${remaining} more chars. Add details.`
       }
-
-      await sleep(1500) // Avoid rate limits
     }
 
     const finalContent = fullStoryText.trim()
     await fs.writeFile(join(finalPath, 'story.txt'), finalContent)
 
-    // SEO Description
-    sendLog('📝 Generating SEO Description...')
+    sendLog('📝 Generating SEO...')
     try {
-      const finalSeoPrompt =
-        seoPrompt && seoPrompt.trim().length > 0
-          ? seoPrompt
-          : 'Write a short YouTube description for this story. No markup.'
+      const seoP = seoPrompt || `Write viral YouTube Title, Desc, Hashtags. Lang: ${language}.`
+      const descRes = await chat.sendMessage(seoP)
+      await fs.writeFile(join(finalPath, 'description.txt'), descRes.response.text().trim())
+    } catch (e) {}
 
-      const descResult = await chat.sendMessage(finalSeoPrompt)
-      await fs.writeFile(join(finalPath, 'description.txt'), descResult.response.text().trim())
-      sendLog('✅ SEO Description Saved')
-    } catch (e) {
-      console.warn('SEO Generation failed', e)
-    }
-
-    // Save History
     const history = store.get('generationHistory', [])
-    history.unshift({
-      title,
-      projectName,
-      path: finalPath,
-      date: new Date().toLocaleString()
-    })
+    history.unshift({ title, projectName, path: finalPath, date: new Date().toLocaleString() })
     store.set('generationHistory', history.slice(0, 50))
 
     return { success: true, textToSpeak: finalContent, folderPath: finalPath }
@@ -462,105 +464,73 @@ ipcMain.handle('generate-story-text', async (event, data) => {
 
 // STAGE 2: Audio, Images, Video
 ipcMain.handle('generate-audio-only', async (event, data) => {
-  const { text, voice, ttsProvider, folderPath } = data
+  const { text, voice, ttsProvider, folderPath, imagePrompt, imageCount } = data
 
   try {
     await fs.writeFile(join(folderPath, 'final_script_for_audio.txt'), text)
 
-    // 1. Scene Analysis
-    sendLog('🤖 Analyzing scenes for images...')
-    const scenesArray = []
-    const TARGET_CHUNK_SIZE = 2000
-    let currentIndex = 0
-
-    while (currentIndex < text.length) {
-      let nextSplitIndex = currentIndex + TARGET_CHUNK_SIZE
-      if (nextSplitIndex >= text.length) {
-        scenesArray.push({ id: scenesArray.length + 1, text: text.substring(currentIndex).trim() })
-        break
-      }
-      let periodIndex = text.indexOf('.', nextSplitIndex)
-      if (periodIndex === -1) {
-        scenesArray.push({ id: scenesArray.length + 1, text: text.substring(currentIndex).trim() })
-        break
-      }
-      scenesArray.push({
-        id: scenesArray.length + 1,
-        text: text.substring(currentIndex, periodIndex + 1).trim()
-      })
-      currentIndex = periodIndex + 1
-    }
-
-    // 2. Image Prompt Generation
-    const apiKey = store.get('apiKey')
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({
-      model: store.get('tempModelName') || 'gemini-2.0-flash'
-    })
-
-    const imageSystemPrompt = `Analyze this story array and generate an AI Image Prompt for EACH scene id. 
-    STRICT: NO FACES, NO PEOPLE. Cinematic 8k.
-    RETURN JSON ONLY: [{ "id": 1, "image_prompt": "..." }, ...] 
-    Scenes: ${JSON.stringify(scenesArray)}`
-
-    sendLog('🧠 Generating image prompts via Gemini...')
-    const imgResult = await model.generateContent(imageSystemPrompt)
-
-    let imagePrompts = []
-    try {
-      const rawJson = imgResult.response
-        .text()
-        .replace(/```json|```/g, '')
-        .trim()
-      imagePrompts = JSON.parse(rawJson)
-    } catch (e) {
-      console.error('JSON Parse Error', e)
-      throw new Error('Failed to parse image prompts from AI')
-    }
-
-    await fs.writeJson(join(folderPath, 'scenes.json'), imagePrompts, { spaces: 2 })
-
-    // 3. Generate Images
-    const imgProvider = store.get('imageProvider') || 'free'
-    const imgToken = store.get('elevenLabsImgKey')
+    // --- КРОК 1: ГЕНЕРАЦІЯ КАРТИНОК ---
     const imagesDir = join(folderPath, 'images')
     await fs.ensureDir(imagesDir)
 
-    for (const p of imagePrompts) {
-      sendLog(`🎨 Generating Image ${p.id}/${imagePrompts.length}...`)
-      const imgPath = join(imagesDir, `scene_${p.id}.jpg`)
+    let countToGen = parseInt(imageCount)
+    if (isNaN(countToGen) || countToGen < 1) countToGen = 1
+
+    const finalImagePrompt = imagePrompt || 'Atmospheric cinematic background, 8k, detailed'
+
+    sendLog(
+      `🎨 Starting Image Generation: Count=${countToGen}, Prompt="${finalImagePrompt.substring(0, 20)}..."`
+    )
+
+    const imgProvider = store.get('imageProvider') || 'free'
+    const imgToken = store.get('elevenLabsImgKey')
+
+    for (let i = 1; i <= countToGen; i++) {
+      const imgName = `scene_${i}.jpg`
+      const imgPath = join(imagesDir, imgName)
+
+      sendLog(`🎨 Generating Image ${i}/${countToGen}...`)
+
       try {
         if (imgProvider === 'eleven') {
-          await generateElevenLabsImage(p.image_prompt, imgToken, imgPath)
+          await generateElevenLabsImage(finalImagePrompt, imgToken, imgPath)
         } else {
-          await downloadPollinationsImage(p.image_prompt, imgPath)
+          await downloadPollinationsImage(finalImagePrompt, imgPath)
         }
+        sendLog(`✅ Image ${i} saved.`)
       } catch (e) {
-        sendLog(`⚠️ Image ${p.id} failed, skipping.`)
+        console.error(`Failed to generate image ${i}:`, e)
+        sendLog(`⚠️ Image ${i} failed. Skipping.`)
       }
+      await sleep(1000)
     }
 
-    // 4. Generate Audio
+    const files = await fs.readdir(imagesDir)
+    if (files.filter((f) => f.endsWith('.jpg')).length === 0) {
+      sendLog('⚠️ WARNING: No images generated! Creating a dummy image...')
+    }
+
+    // --- КРОК 2: ГЕНЕРАЦІЯ АУДІО ---
     const audioPath = join(folderPath, 'audio.mp3')
+
     if (ttsProvider === 'genai') {
       const gToken = store.get('genAiKey')
-      if (!gToken) throw new Error('GenAI Token missing in settings!')
+      if (!gToken) throw new Error('GenAI Token missing!')
       await generateGenAiAudio(text, voice, gToken, audioPath)
     } else {
       sendLog('🎙️ Generating Edge TTS Audio...')
+      const cleanText = text.replace(/["`]/g, '').replace(/\n/g, ' ')
       const tempPath = join(folderPath, 'temp_tts.txt')
-      await fs.writeFile(tempPath, text)
+      await fs.writeFile(tempPath, cleanText, 'utf8')
 
       const edgePath = store.get('edgeTtsPath') || 'edge-tts'
-      // Use quotes for paths to handle spaces
-      await execPromise(
-        `"${edgePath}" --file "${tempPath}" --write-media "${audioPath}" --voice ${voice}`
-      )
+      // ВИПРАВЛЕНО: Прибрали --encoding utf-8
+      const command = `"${edgePath}" --file "${tempPath}" --write-media "${audioPath}" --voice ${voice}`
 
-      await fs.unlink(tempPath).catch(() => {})
+      await execPromise(command)
     }
 
-    // 5. Render Video
+    // --- КРОК 3: ВІДЕО ---
     await createVideoFromProject(folderPath)
 
     sendLog('✅ All processes completed!')

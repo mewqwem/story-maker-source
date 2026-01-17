@@ -4,8 +4,7 @@
  */
 
 import { showToast } from './ui.js'
-import { getFavorites, getPromptText, getSeoPromptText } from './library.js'
-
+import { getFavorites, getPromptText, getSeoPromptText, getImagePromptText } from './library.js'
 // --- CONSTANTS ---
 const LANG_CODE_MAP = {
   English: 'en',
@@ -143,6 +142,11 @@ async function startProcess() {
   const title = document.getElementById('storyTitle').value
   const templateKey = document.getElementById('selectedTemplate').value
   const seoTemplateKey = document.getElementById('selectedSeoTemplate').value
+
+  // 👇 НОВІ ПОЛЯ
+  const imageTemplateKey = document.getElementById('selectedImageTemplate').value
+  const imageCount = parseInt(document.getElementById('totalImagesCount').value) || 15
+
   const outputFolder = document.getElementById('outputFolderDisplay').value
   const targetLength = parseInt(document.getElementById('storyLength').value) || 25000
   const modelName = document.getElementById('modelSelect')?.value || 'gemini-2.0-flash'
@@ -153,12 +157,18 @@ async function startProcess() {
     return showToast('❌ Fill Project Name, Title and Output Folder!', 'error')
   }
   if (!templateKey) {
-    return showToast('❌ Please select a Story Template from the list!', 'error')
+    return showToast('❌ Please select a Story Template!', 'error')
+  }
+  // 👇 ВАЛІДАЦІЯ КАРТИНОК
+  if (!imageTemplateKey) {
+    return showToast('❌ Please select an Image Style Template!', 'error')
   }
 
   // Get content from Library getters
   const templateText = getPromptText(templateKey)
   const seoPrompt = getSeoPromptText(seoTemplateKey)
+  // 👇 ОТРИМУЄМО ТЕКСТ ПРОМПТУ КАРТИНОК
+  const imagePrompt = getImagePromptText(imageTemplateKey)
 
   if (!templateText) {
     return showToast('❌ Error: Template content not found.', 'error')
@@ -171,15 +181,15 @@ async function startProcess() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> WORKING...'
   }
 
+  // Reset logs logic...
   const popFolder = document.getElementById('pop-folder')
   if (popFolder) popFolder.innerText = outputFolder
-
   const popDetails = document.getElementById('pop-details')
   if (popDetails) popDetails.innerHTML = ''
-
   const popMsg = document.getElementById('pop-msg')
   if (popMsg) popMsg.innerText = 'Starting...'
 
+  // Payload for TEXT generation
   const payload = {
     projectName,
     templateText,
@@ -192,15 +202,17 @@ async function startProcess() {
   }
 
   try {
-    // IPC Call to Main Process
     const result = await window.api.generateStoryText(payload)
 
     if (result.success) {
-      // Store data for next step
+      // Store data for next step (AUDIO & IMAGE)
       tempGenerationData = {
         folderPath: result.folderPath,
         voice: document.getElementById('voice').value,
-        ttsProvider: document.getElementById('ttsProvider').value
+        ttsProvider: document.getElementById('ttsProvider').value,
+        // 👇 ЗБЕРІГАЄМО ПРОМПТ І КІЛЬКІСТЬ ДЛЯ НАСТУПНОГО КРОКУ
+        imagePrompt: imagePrompt,
+        imageCount: imageCount
       }
 
       // Show Preview Modal
@@ -216,7 +228,6 @@ async function startProcess() {
     console.error(err)
     updateStatusDisplay(`🛑 System Error: ${err.message}`, 'error')
   } finally {
-    // Reset button state
     btn.disabled = false
     btn.innerHTML = '<i class="fa-solid fa-rocket"></i> <span>Start Generation</span>'
   }
@@ -238,7 +249,10 @@ async function confirmAudioGeneration() {
       text: finalUserData,
       voice: tempGenerationData.voice,
       ttsProvider: tempGenerationData.ttsProvider,
-      folderPath: tempGenerationData.folderPath
+      folderPath: tempGenerationData.folderPath,
+      // 👇 ПЕРЕДАЄМО РЕАЛЬНІ ДАНІ, ЯКІ МИ ЗБЕРЕГЛИ В startProcess
+      imagePrompt: tempGenerationData.imagePrompt,
+      imageCount: tempGenerationData.imageCount
     }
 
     const result = await window.api.generateAudioOnly(payload)

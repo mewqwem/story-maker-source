@@ -1,36 +1,48 @@
 /* #region 1. VARIABLES & RESET */
 :root {
-  /* --- Colors --- */
-  --bg-app: #0d0d0d; /* Main Background */
-  --bg-sidebar: #161616; /* Sidebar */
-  --bg-surface: #212121; /* Cards/Panels */
-  --bg-input: #1a1a1a; /* Inputs */
+  /* --- Palette (Zinc + Indigo) --- */
+  --bg-app: #09090b; /* Very dark base */
+  --bg-sidebar: #101012; /* Slightly lighter sidebar */
+  --bg-surface: #18181b; /* Card background */
+  --bg-surface-hover: #27272a;
 
-  --accent: #7289da; /* Primary Accent */
-  --accent-hover: #5b6eae;
+  --bg-input: #09090b;
+  --border: #27272a; /* Subtle border */
+  --border-focus: #4f46e5; /* Indigo focus */
 
-  --text-main: #f2f2f2;
-  --text-muted: #9e9e9e;
+  /* --- Accent --- */
+  --primary: #4f46e5; /* Indigo-600 */
+  --primary-hover: #4338ca; /* Indigo-700 */
+  --danger: #ef4444; /* Red */
+  --success: #10b981; /* Emerald */
 
-  --border: #333333;
-  --border-light: #444444;
+  /* --- Text --- */
+  --text-main: #f4f4f5; /* Zinc-100 */
+  --text-muted: #a1a1aa; /* Zinc-400 */
+  --text-dim: #52525b; /* Zinc-600 */
 
-  /* --- UI Helpers --- */
+  /* --- Metrics --- */
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
 
-  --ease: cubic-bezier(0.23, 1, 0.32, 1); /* Smooth minimalist easing */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
   user-select: none;
 }
 
@@ -41,170 +53,138 @@ body {
   width: 100vw;
   overflow: hidden;
   font-size: 14px;
+  line-height: 1.5;
 }
 
-/* Custom Scrollbar */
+/* Scrollbar Styling */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 3px;
+  background: #3f3f46;
+  border-radius: 4px;
+  border: 2px solid var(--bg-app);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #52525b;
 }
 /* #endregion */
 
-/* #region 2. TITLE BAR */
-#titlebar {
-  height: 40px;
-  background: var(--bg-app);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--border);
-  -webkit-app-region: drag;
-}
-
-.window-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
-}
-.window-title img {
-  width: 16px;
-  opacity: 0.8;
-}
-
-.window-controls {
-  -webkit-app-region: no-drag;
-  display: flex;
-  gap: 8px;
-}
-
-.window-controls button {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.window-controls button:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-.window-controls button.close:hover {
-  background: #ff4757;
-}
-/* #endregion */
-
-/* #region 3. LAYOUT & SIDEBAR */
+/* #region 2. LAYOUT & SIDEBAR */
 .app-layout {
   display: flex;
-  height: calc(100vh - 36px); /* Це ОК для додатків */
+  height: 100vh;
   width: 100%;
-  overflow: hidden; /* Ховаємо те, що вилазить за межі контейнера */
+  overflow: hidden;
 }
 
 .sidebar {
-  width: 250px;
-  /* Add these lines to fix the sidebar width */
-  min-width: 250px; /* Prevent sidebar from becoming smaller than 250px */
-  flex-shrink: 0; /* Explicitly tell Flexbox NOT to shrink this item */
-
+  width: 260px;
+  min-width: 260px; /* Prevent shrinking */
+  flex-shrink: 0; /* Force fixed width */
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 20px 12px;
-  z-index: 10; /* Ensure sidebar stays on top visually if overlap occurs */
+  padding: 24px 16px;
+  z-index: 20;
 }
 
 .sidebar-header .menu-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  color: #555;
-  letter-spacing: 1.2px;
-  margin-bottom: 15px;
-  padding-left: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+  padding-left: 8px;
+  text-transform: uppercase;
+}
+
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
-  margin-bottom: 4px;
+  padding: 10px 12px;
   background: transparent;
   border: none;
   color: var(--text-muted);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.2s var(--ease);
-  width: 100%;
   text-align: left;
+  transition: all 0.2s var(--ease);
+}
+
+.nav-item i {
+  width: 18px;
+  text-align: center;
+  transition: color 0.2s;
 }
 
 .nav-item:hover {
   background: rgba(255, 255, 255, 0.03);
   color: var(--text-main);
-  transform: translateX(3px);
 }
 
 .nav-item.active {
-  background: var(--bg-surface);
-  color: var(--accent);
-  border: 1px solid var(--border);
+  background: rgba(79, 70, 229, 0.1); /* Low opacity primary */
+  color: #818cf8; /* Light indigo */
+}
+.nav-item.active i {
+  color: #818cf8;
 }
 
 .sidebar-footer {
   margin-top: auto;
   text-align: center;
-  color: #333;
-  font-size: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #222;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.version-badge {
+  font-size: 11px;
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 8px;
+  border-radius: 10px;
+  display: inline-block;
 }
 /* #endregion */
 
-/* #region 4. MAIN CONTENT & VIEWS */
+/* #region 3. MAIN CONTENT & VIEWS */
 .content-view {
   flex: 1;
-  height: 100%; /* Займає всю висоту батька */
-  overflow-y: auto; /* <--- ОСЬ ЦЕ ГОЛОВНЕ: вмикає скрол, якщо контент довгий */
-  padding: 40px 40px 100px 40px; /* Великий відступ знизу, щоб контент не прилипав */
+  min-width: 0; /* Critical for flex shrinking */
+  padding: 40px 40px 100px 40px; /* Великий відступ знизу */
+  overflow-y: auto;
+  position: relative;
+  background: var(--bg-app);
 }
 
 .view {
   display: none;
-  animation: fadeSlideUp 0.4s var(--ease);
+  animation: fadeIn 0.3s var(--ease);
+  max-width: 1200px;
+  margin: 0 auto;
 }
 .view.active {
   display: block;
 }
 
-@keyframes fadeSlideUp {
+@keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(15px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -213,21 +193,22 @@ body {
 }
 
 .view-header {
-  margin-bottom: 25px;
+  margin-bottom: 32px;
 }
 .view-header h2 {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 600;
   color: var(--text-main);
+  letter-spacing: -0.02em;
 }
 .view-header .description {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
-  margin-top: 5px;
+  margin-top: 6px;
 }
 /* #endregion */
 
-/* #region 5. UI COMPONENTS (Buttons, Inputs) */
+/* #region 4. UI COMPONENTS (Buttons, Inputs) */
 /* Inputs */
 input[type='text'],
 input[type='number'],
@@ -238,17 +219,20 @@ select {
   padding: 10px 12px;
   background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text-main);
   font-size: 13px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-sm);
   user-select: text;
 }
+
 input:focus,
 textarea:focus,
 select:focus {
-  border-color: var(--accent);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.5);
 }
 
 /* Buttons */
@@ -257,181 +241,221 @@ button {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--primary);
   color: #fff;
   border: none;
-  padding: 10px 24px;
-  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
   font-weight: 500;
-  box-shadow: 0 4px 15px rgba(114, 137, 218, 0.2);
-  transition: all 0.2s var(--ease);
+  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  box-shadow: 0 4px 6px rgba(79, 70, 229, 0.25);
+  transition: all 0.2s var(--ease);
 }
 .btn-primary:hover {
-  background: var(--accent-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(114, 137, 218, 0.3);
-}
-.btn-primary:active {
-  transform: translateY(0);
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 10px rgba(79, 70, 229, 0.3);
 }
 
 .btn-secondary {
-  background: transparent;
+  background: var(--bg-surface);
   border: 1px solid var(--border);
-  color: var(--text-muted);
+  color: var(--text-main);
   padding: 8px 16px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  font-size: 13px;
   transition: all 0.2s;
 }
 .btn-secondary:hover {
-  border-color: var(--text-muted);
-  color: var(--text-main);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--bg-surface-hover);
+  border-color: #3f3f46;
 }
 
 .btn-icon {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
-  background: var(--bg-input);
+  background: var(--bg-surface);
   color: var(--text-muted);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   transition: all 0.2s;
 }
 .btn-icon:hover {
-  color: #fff;
-  border-color: #555;
+  color: var(--text-main);
+  border-color: #52525b;
+  background: var(--bg-surface-hover);
 }
 .btn-icon.danger:hover {
-  color: #ff4757;
-  border-color: #ff4757;
+  color: #fff;
+  background: var(--danger);
+  border-color: var(--danger);
+}
+.btn-icon.primary:hover {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-text {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  transition: color 0.2s;
+}
+.btn-text:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
 }
 /* #endregion */
 
-/* #region 6. GENERATOR PAGE */
+/* #region 5. GENERATOR PAGE */
 .generator-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 20px;
-  flex-wrap: wrap;
+  align-items: start;
 }
 
 .step-card {
-  flex: 1 1 300px; /* Minimalist responsive flex */
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 20px;
+  border-radius: var(--radius-lg);
+  padding: 24px;
   display: flex;
   flex-direction: column;
+  box-shadow: var(--shadow-sm);
   transition: border-color 0.2s;
 }
 .step-card:hover {
-  border-color: var(--border-light);
+  border-color: #3f3f46;
+}
+.step-card.full-height {
+  height: 100%;
 }
 
 .step-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #333;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
 }
+
 .step-badge {
-  background: var(--bg-input);
-  color: var(--accent);
-  width: 22px;
-  height: 22px;
+  background: rgba(79, 70, 229, 0.1);
+  color: #818cf8;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  font-size: 11px;
-  font-weight: bold;
+  font-size: 12px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(114, 137, 218, 0.3);
+  border: 1px solid rgba(79, 70, 229, 0.2);
+}
+
+.step-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
 }
 
 .form-group {
-  margin-bottom: 15px;
+  margin-bottom: 16px;
 }
 .form-group label {
   display: block;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
+/* Template Selectors */
 .templates-grid {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 250px;
+  gap: 6px;
+  max-height: 240px;
   overflow-y: auto;
   background: var(--bg-input);
-  padding: 10px;
-  border-radius: var(--radius-sm);
+  padding: 8px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
+}
+.empty-msg {
+  padding: 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
 }
 
 .template-btn {
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
-  padding: 10px;
-  border-radius: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
   text-align: left;
   display: flex;
   align-items: center;
   gap: 10px;
   transition: all 0.2s;
+  font-size: 13px;
+  cursor: pointer;
 }
 .template-btn:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--text-main);
 }
 .template-btn.active {
-  background: rgba(114, 137, 218, 0.1);
-  border-color: var(--accent);
-  color: var(--accent);
+  background: rgba(79, 70, 229, 0.15);
+  border-color: var(--primary);
+  color: #fff;
 }
 
 .generator-actions {
-  margin-top: 30px;
-  text-align: center;
+  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 .btn-cta {
   width: 100%;
-  max-width: 300px;
-  margin: 0 auto;
-  height: 50px;
-  font-size: 15px;
+  max-width: 320px;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
 }
 #status-line {
-  display: block;
-  margin-top: 10px;
-  font-size: 12px;
-  color: #555;
+  font-size: 13px;
+  color: var(--text-dim);
 }
 /* #endregion */
 
-/* #region 7. LIBRARY PAGE */
+/* #region 6. LIBRARY PAGE */
 .library-tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 24px;
   padding: 4px;
-  background: var(--bg-input);
-  border-radius: var(--radius-sm);
-  width: fit-content;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
 }
 
@@ -440,25 +464,27 @@ button {
   border: none;
   color: var(--text-muted);
   padding: 8px 16px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
   transition: all 0.2s;
+  cursor: pointer;
 }
 .lib-tab-btn:hover {
   color: var(--text-main);
+  background: rgba(255, 255, 255, 0.03);
 }
 .lib-tab-btn.active {
-  background: var(--bg-surface);
+  background: var(--bg-input);
   color: var(--text-main);
   box-shadow: var(--shadow-sm);
+  font-weight: 600;
 }
 
-/* --- LIBRARY PANELS --- */
+/* Panels */
 .library-content-container {
   position: relative;
 }
-
 .lib-panel {
   display: none;
   animation: fadeIn 0.3s var(--ease);
@@ -467,159 +493,145 @@ button {
   display: block;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 .library-grid-layout {
   display: grid;
   grid-template-columns: 350px 1fr;
-  gap: 20px;
-  height: 550px; /* Трохи збільшив висоту */
+  gap: 24px;
+  height: 600px;
 }
 
 .panel {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
+
 .panel-header {
-  padding: 15px 20px;
-  background: rgba(0, 0, 0, 0.2);
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   font-weight: 600;
   font-size: 13px;
   color: var(--text-muted);
-}
-.panel-body {
-  padding: 20px; /* ВАЖЛИВО: Загальний відступ всередині панелі */
-  flex: 1;
   display: flex;
-  flex-direction: column;
-  overflow-y: hidden; /* Скрол має бути тільки у списках */
-}
-
-/* --- Voice Panel Specifics (ВИПРАВЛЕНО) --- */
-.add-voice-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px; /* Відступ між елементами форми */
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-/* Вирівнювання рядка інпутів */
-.add-voice-form .input-row {
-  display: flex;
-  gap: 10px;
+  justify-content: space-between;
   align-items: center;
 }
 
-/* Список голосів (ВИПРАВЛЕНО) */
+.panel-body {
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Voice Panel Specifics */
+.add-voice-form {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.input-sm {
+  padding: 8px 10px;
+}
+.flex-grow {
+  flex: 1;
+}
+
 .scroll-list {
   flex: 1;
   overflow-y: auto;
-  padding-right: 5px; /* Щоб скролбар не налізав */
+  padding: 10px;
 }
-
 .voice-list {
   list-style: none;
-  padding: 0;
-  margin: 0;
 }
-
 .voice-list li {
-  background: var(--bg-input);
-  padding: 12px 16px; /* ВАЖЛИВО: Падінги всередині елемента списку */
-  margin-bottom: 8px;
+  background: transparent;
+  padding: 8px 12px;
+  margin-bottom: 2px;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   transition: all 0.2s;
 }
-
 .voice-list li:hover {
-  border-color: var(--border-light);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-input);
+  border-color: var(--border);
 }
-
-/* Контейнер всередині li, який розкидає текст і кнопку */
 .fav-chip {
   display: flex;
   align-items: center;
-  justify-content: space-between; /* Текст зліва, хрестик справа */
-  width: 100%;
+  justify-content: space-between;
 }
-
 .fav-chip strong {
   font-weight: 500;
   color: var(--text-main);
   font-size: 13px;
 }
-
 .fav-chip button {
   background: transparent;
   border: none;
-  color: #666;
+  color: var(--text-dim);
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 6px;
   border-radius: 4px;
-  transition: color 0.2s;
 }
-
 .fav-chip button:hover {
-  color: #ff4757; /* Червоний при наведенні */
-  background: rgba(255, 71, 87, 0.1);
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
 }
 
-/* --- Prompt Editor Layout (Залишаємо як було) --- */
+/* Prompt Editor */
 .prompt-editor-container {
   display: flex;
   height: 100%;
 }
 .prompt-list-col {
-  width: 220px;
-  background: #181818;
+  width: 240px;
+  background: rgba(0, 0, 0, 0.2);
   border-right: 1px solid var(--border);
-  padding: 10px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
 }
+.full-width {
+  width: 100%;
+}
+
 .keys-list {
   list-style: none;
-  margin-top: 10px;
+  margin-top: 12px;
   overflow-y: auto;
   flex: 1;
 }
 .prompt-key-item {
-  padding: 10px 12px;
+  padding: 8px 12px;
   font-size: 13px;
-  color: #888; /* Збільшив падінг */
+  color: var(--text-muted);
   cursor: pointer;
-  border-radius: 4px;
-  margin-bottom: 4px;
-  transition: all 0.2s;
+  border-radius: var(--radius-sm);
+  margin-bottom: 2px;
+  transition: all 0.15s;
 }
 .prompt-key-item:hover {
-  color: #fff;
+  color: var(--text-main);
   background: rgba(255, 255, 255, 0.05);
-  padding-left: 16px;
 }
 .prompt-key-item.active {
-  color: var(--accent);
-  background: rgba(114, 137, 218, 0.1);
-  font-weight: 600;
+  color: #818cf8;
+  background: rgba(79, 70, 229, 0.1);
+  font-weight: 500;
 }
 
 .prompt-edit-col {
@@ -627,33 +639,43 @@ button {
   display: flex;
   flex-direction: column;
   position: relative;
+  background: var(--bg-surface);
 }
 .editor-toolbar {
-  padding: 10px 15px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
-  background: #1d1d1d;
   align-items: center;
+  background: var(--bg-surface);
 }
 .editor-toolbar input {
   background: transparent;
   border: none;
-  font-weight: bold;
+  font-weight: 600;
+  font-size: 14px;
   padding: 0;
+  box-shadow: none;
   color: var(--text-main);
 }
+.tool-btns {
+  display: flex;
+  gap: 8px;
+}
 #editPromptText,
-#editSeoPromptText {
+#editSeoPromptText,
+#editImagePromptText {
   flex: 1;
   resize: none;
   border: none;
-  padding: 20px;
-  background: #151515;
-  font-family: 'Consolas', monospace;
+  padding: 24px;
+  background: #121214; /* Darker for code/text */
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 13px;
   line-height: 1.6;
-  color: #ccc;
+  color: #e4e4e7;
   outline: none;
+  box-shadow: none;
 }
 .overlay {
   position: absolute;
@@ -662,274 +684,183 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #555;
-  z-index: 5;
+  color: var(--text-dim);
+  z-index: 10;
+  font-size: 13px;
 }
 .overlay.hidden {
   display: none;
 }
-.btn-text {
-  color: white;
-  background: transparent;
-  cursor: pointer;
-  border: none;
-
-  transition:
-    transform 300ms ease,
-    color 300ms ease;
-}
-.btn-text:hover,
-.btn-text:focus {
-  color: red;
-  transform: scale(1.1);
-}
 /* #endregion */
 
-/* #region 8. SETTINGS & HISTORY */
+/* #region 7. SETTINGS & HISTORY */
+.settings-container {
+  max-width: 800px;
+}
 .settings-group {
   border: 1px solid var(--border);
   background: var(--bg-surface);
-  border-radius: var(--radius-sm);
-  margin-bottom: 15px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
   overflow: hidden;
 }
 
 .accordion-trigger {
-  padding: 18px 20px;
+  padding: 16px 20px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-weight: 500;
+  color: var(--text-main);
+  background: var(--bg-surface);
   transition: background 0.2s;
-  user-select: none;
 }
 .accordion-trigger:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--bg-surface-hover);
+}
+.accordion-trigger span i {
+  margin-right: 10px;
+  color: var(--text-muted);
+  width: 16px;
+  text-align: center;
 }
 
-/* ВАЖЛИВО: Виправлені падінги для розкритого блоку */
 .accordion-body {
   max-height: 0;
   overflow: hidden;
+  transition:
+    max-height 0.3s var(--ease),
+    opacity 0.3s;
   opacity: 0;
-  transition: all 0.3s var(--ease);
-  background: #181818; /* Трохи темніший фон всередині */
-  border-top: 1px solid transparent;
+  background: #141417; /* Inner contrasting bg */
+  border-top: 1px solid var(--border);
 }
-
-/* Коли блок відкритий (цей стиль додається через JS, але падінг задаємо тут для дочірніх елементів) */
-.accordion-body > * {
-  padding: 0 20px 20px 20px; /* Відступи з боків і знизу */
+/* This class is added by JS logic often, or controlled by style */
+.accordion-body.open {
+  opacity: 1;
 }
-/* Оскільки accordion-body має max-height, краще давати падінг обгорткам або самим елементам, 
-   але найпростіший спосіб, щоб уникнути стрибків анімації - додати падінг самому .accordion-body, 
-   але тільки коли він активний. Проте, щоб не ламати JS анімацію висоти, 
-   ми додамо відступи самим групам форми всередині */
 
 .accordion-body .form-group {
-  padding: 0 20px; /* Відступи зліва/справа */
+  padding: 0 20px;
   margin-bottom: 20px;
 }
-/* Перший елемент має відступ зверху */
 .accordion-body .form-group:first-child {
-  padding-top: 20px;
+  padding-top: 24px;
+}
+.mt-1 {
+  margin-top: 4px;
+}
+.mt-2 {
+  margin-top: 8px;
 }
 
-/* --- Password Eye Fix (ВИПРАВЛЕНО) --- */
+/* Password Eye */
 .password-wrapper {
-  position: relative; /* Щоб око позиціювалось відносно цього блоку */
-  width: 100%;
+  position: relative;
   display: flex;
   align-items: center;
 }
-
 .password-wrapper input {
-  padding-right: 40px; /* Місце для іконки ока, щоб текст не налізав */
-  width: 100%;
+  padding-right: 40px;
 }
-
 .toggle-btn {
   position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%); /* Центрування по вертикалі */
-  color: #666;
+  right: 10px;
+  color: var(--text-dim);
   cursor: pointer;
-  font-size: 14px;
-  z-index: 2;
-  transition: color 0.2s;
+  padding: 4px;
   background: transparent;
   border: none;
-  padding: 4px; /* Збільшуємо зону кліку */
 }
-
 .toggle-btn:hover {
-  color: var(--accent); /* Підсвітка при наведенні */
+  color: var(--text-main);
 }
 
-/* Відступ кнопки Save від інпуту */
-.form-group button.btn-secondary {
-  margin-top: 10px;
-}
-
-/* Toggle Switch Groups (без змін, але для цілісності регіону) */
+/* Toggles */
 .toggle-switch-group {
   display: flex;
   background: var(--bg-input);
-  padding: 4px;
-  border-radius: 4px;
-  width: fit-content;
+  padding: 3px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
+  width: fit-content;
 }
 .toggle-option {
-  padding: 6px 14px;
+  padding: 6px 16px;
   border: none;
   background: transparent;
-  color: #777;
+  color: var(--text-muted);
   border-radius: 4px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   transition: all 0.2s;
   cursor: pointer;
 }
 .toggle-option:hover {
-  color: #fff;
+  color: var(--text-main);
 }
 .toggle-option.active {
-  background: #333;
-  color: #fff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  box-shadow: var(--shadow-sm);
 }
 
 /* History Grid */
 .history-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
 }
 .history-item {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  padding: 15px;
-  border-radius: var(--radius-sm);
+  padding: 16px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition:
-    transform 0.2s,
-    border-color 0.2s;
+  transition: all 0.2s;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
+}
+.history-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
 }
 .history-item strong {
   color: var(--text-main);
-  font-size: 13px;
+  font-size: 14px;
 }
 .history-item small {
-  color: #666;
+  color: var(--text-muted);
   font-size: 11px;
-}
-
-.history-item:hover {
-  transform: translateY(-3px);
-  border-color: var(--accent);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 /* #endregion */
 
-/* #region 9. STATUS, TOAST & MODAL */
-/* Status Indicator */
-.status-area {
-  position: relative;
-  -webkit-app-region: no-drag;
-  margin-right: 15px;
-}
-.status-indicator {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #333;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
-}
-.status-indicator i {
-  display: none;
-} /* Hide icon for cleaner look */
-.status-indicator.idle {
-  background: #555;
-}
-.status-indicator.processing {
-  background: var(--accent);
-  animation: pulse 1.5s infinite;
-}
-.status-indicator.success {
-  background: #4caf50;
-}
-.status-indicator.warning {
-  background: #f1c40f;
-}
-.status-indicator.error {
-  background: #ff4757;
-}
-
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(114, 137, 218, 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 6px rgba(114, 137, 218, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(114, 137, 218, 0);
-  }
-}
-
-.status-popover {
-  position: absolute;
-  top: 30px;
-  right: -5px;
-  width: 280px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  padding: 15px;
-  z-index: 1000;
+/* #region 8. MODALS & TOASTS */
+/* Toast */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2000;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-.status-popover.hidden {
-  display: none;
-}
-.log-item {
-  font-size: 11px;
-  padding: 4px 0;
-  border-bottom: 1px solid #333;
-  color: #888;
-}
-
-/* Toast */
-#toast-container {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 2000;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 .toast {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  color: #fff;
-  padding: 10px 16px;
-  border-radius: 6px;
+  color: var(--text-main);
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
   font-size: 13px;
   box-shadow: var(--shadow-lg);
+  border-left: 3px solid var(--primary);
+  display: flex;
+  align-items: center;
   animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  border-left: 3px solid var(--accent);
 }
 @keyframes slideIn {
   from {
@@ -946,7 +877,7 @@ button {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -954,7 +885,7 @@ button {
   z-index: 3000;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s;
+  transition: opacity 0.2s;
 }
 .modal-backdrop.show {
   opacity: 1;
@@ -967,48 +898,37 @@ button {
   overflow: hidden;
   box-shadow: var(--shadow-lg);
   transform: scale(0.95);
-  transition: transform 0.3s var(--ease);
+  transition: transform 0.2s var(--ease);
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
 }
 .modal-backdrop.show .modal-card {
   transform: scale(1);
 }
+
 .modal-head {
-  background: var(--bg-input);
-  padding: 15px 20px;
+  background: var(--bg-surface);
+  padding: 16px 24px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+.modal-head h3 {
+  font-size: 16px;
+  font-weight: 600;
 }
 .modal-body {
-  padding: 20px;
+  padding: 24px;
+  overflow-y: auto;
 }
 .modal-foot {
-  padding: 15px 20px;
+  padding: 16px 24px;
   background: var(--bg-input);
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
   border-top: 1px solid var(--border);
 }
 /* #endregion */
-/* --- FIX INPUT ROW LAYOUT --- */
-.input-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.input-row input {
-  flex: 1; /* Займає весь доступний простір */
-  min-width: 0; /* Дозволяє зменшуватися, щоб не виштовхувати кнопку */
-  z-index: 1;
-}
-
-.input-row .btn-icon {
-  flex-shrink: 0; /* Забороняє кнопці стискатися */
-  position: relative;
-  z-index: 2; /* Піднімає кнопку над іншими елементами */
-  cursor: pointer;
-}

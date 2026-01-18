@@ -192,7 +192,7 @@ async function startProcess() {
   // Payload for TEXT generation
   const payload = {
     projectName,
-    storyPrompt: templateText, // ⚠️ ВАЖЛИВО: Ми перейменовуємо templateText на storyPrompt для бекенду!
+    storyPrompt: templateText,
     seoPrompt,
     title,
     language,

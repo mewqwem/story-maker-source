@@ -357,7 +357,6 @@ async function createVideoFromProject(folderPath) {
 // --- IPC HANDLERS: GENERATION FLOW ---
 
 ipcMain.handle('generate-story-text', async (event, data) => {
-  // storyPrompt - це текст шаблону, який прийшов з library.json (через фронтенд)
   const {
     projectName,
     storyPrompt,
@@ -373,16 +372,16 @@ ipcMain.handle('generate-story-text', async (event, data) => {
     const apiKey = store.get('apiKey')
     if (!apiKey) throw new Error('Gemini API Key is missing.')
 
-    // 1. ПЕРЕВІРКА: Чи прийшов шаблон?
+    // 1. ПЕРЕВІРКА
     if (!storyPrompt || typeof storyPrompt !== 'string') {
-      throw new Error('Template (storyPrompt) is missing or empty! Check your frontend logic.')
+      throw new Error('Template (storyPrompt) is missing! Check frontend.')
     }
 
     const genAI = new GoogleGenerativeAI(apiKey)
     const selectedModel = modelName || 'gemini-2.0-flash'
     const model = genAI.getGenerativeModel({ model: selectedModel })
 
-    // 2. СТВОРЕННЯ ПАПКИ
+    // 2. ПАПКИ
     const safeProjectName = projectName
       .replace(/[а-яА-ЯіІїЇєЄґҐ]/g, 'ua')
       .replace(/[^a-zA-Z0-9]/g, '_')
@@ -395,26 +394,25 @@ ipcMain.handle('generate-story-text', async (event, data) => {
 
     sendLog('✍️ Starting Story Generation...')
 
-    // 3. ПІДГОТОВКА ПРОМПТУ (Підстановка змінних у шаблон)
-    // Шаблон у library.json може мати вигляд: "Write a story about {title} in {language}..."
-    // Ми замінюємо ці слова на реальні значення.
+    // 3. ПІДГОТОВКА ПРОМПТУ
+    // Замінюємо змінні в шаблоні
     let finalInitialPrompt = storyPrompt
       .replace(/{title}/gi, title)
-      .replace(/{language}/gi, language)
+      .replace(/{language}/gi, language) // Це важливо, але іноді AI ігнорує
       .replace(/{length}/gi, targetLength || 'medium')
       .replace(/{projectName}/gi, projectName)
 
-    // Додаємо технічні правила в кінець, щоб цикл працював, навіть якщо їх немає в шаблоні
+    // 🔥 ПОКРАЩЕНІ ПРАВИЛА (Виправляємо проблему з мовою)
     const systemRules = `
       \n\nSYSTEM RULES (MUST FOLLOW):
       1. Write the story in parts. Do NOT write the whole story at once.
       2. At the end of a part, write exactly "CONTINUE" if not finished.
       3. If the story is completely finished, write exactly "END".
-      4. Language: ${language}.
-      5. No markdown headers.
+      4. ⚠️ CRITICAL: WRITE THE STORY ONLY IN THIS LANGUAGE: ${language}.
+      5. No markdown headers (like # Chapter 1).
     `
 
-    // Перше повідомлення: Шаблон + Правила
+    // Перше повідомлення
     let nextMessage = finalInitialPrompt + systemRules
 
     const chat = model.startChat({ history: [] })
@@ -425,38 +423,39 @@ ipcMain.handle('generate-story-text', async (event, data) => {
     // 4. ЦИКЛ ГЕНЕРАЦІЇ
     while (!isFinished && iteration < 30) {
       iteration++
-      sendLog(`✍️ Writing part ${iteration}...`)
+      sendLog(`✍️ Writing part ${iteration} (Lang: ${language})...`)
 
       try {
-        // Відправляємо повідомлення (перший раз - промпт, далі - 'continue')
         const result = await chat.sendMessage(nextMessage)
         const rawText = result.response.text()
 
-        // Чистимо текст від службових слів
+        // 🔥 ПОКРАЩЕНА ОЧИСТКА (Виправляємо "Type to receive...")
+        // Використовуємо регулярні вирази (Regex), щоб зловити будь-які варіації фрази
         let cleanChunk = rawText
           .replace(/CONTINUE/gi, '')
-          .replace('Type ‘CONTINUE’ to receive the next part.', '')
           .replace(/END/gi, '')
-          .replace(/\*\*/g, '')
-          .replace(/##/g, '')
+          .replace(/Type .*? to receive the next part\.?/gi, '') // Ловить "Type [що завгодно] to receive..."
+          .replace(/Type .*? to continue\.?/gi, '') // Ловить "Type 'Continue' to continue"
+          .replace(/\(Write .*?\)/gi, '') // Ловить інструкції в дужках, якщо AI їх виплюнув
+          .replace(/\*\*/g, '') // Жирний шрифт
+          .replace(/##/g, '') // Заголовки
           .trim()
 
         if (cleanChunk) {
           fullStoryText += cleanChunk + '\n\n'
         }
 
-        // Перевіряємо тригери
+        // Логіка продовження
         if (rawText.includes('END')) {
           isFinished = true
           sendLog('✅ Story finished by AI.')
         } else {
-          // Якщо AI забув написати CONTINUE, але й END не написав — продовжуємо
+          // Нагадуємо "continue", але можна ще раз нагадати про мову, якщо треба
           nextMessage = 'continue'
           await sleep(2000)
         }
       } catch (err) {
         console.error(`Generation Error at part ${iteration}:`, err)
-        // Якщо помилка (наприклад, перевантаження), пробуємо зберегти те, що є і вийти
         break
       }
     }
@@ -467,14 +466,14 @@ ipcMain.handle('generate-story-text', async (event, data) => {
 
     await fs.writeFile(join(finalPath, 'story.txt'), finalContent)
 
-    // 6. SEO (Використовуємо твій шаблон для SEO або дефолтний)
+    // 6. SEO
     sendLog('📝 Generating SEO...')
     try {
+      // Додаємо в SEO промпт явну вказівку мови
       const seoTemplate =
         seoPrompt ||
-        `Based on the story above, write YouTube Title, Description, Hashtags. Lang: ${language}.`
+        `Based on the story above, write YouTube Title, Description, Hashtags. Language: ${language}.`
 
-      // Тут теж можна зробити підстановку, якщо в SEO шаблоні є змінні
       const finalSeoPrompt = seoTemplate.replace(/{title}/gi, title)
 
       const descRes = await chat.sendMessage(finalSeoPrompt)
@@ -483,7 +482,7 @@ ipcMain.handle('generate-story-text', async (event, data) => {
       console.warn('SEO gen failed', e)
     }
 
-    // 7. ІСТОРІЯ В ПРОГРАМІ
+    // 7. ІСТОРІЯ
     const history = store.get('generationHistory', [])
     history.unshift({
       title: projectName,
@@ -493,7 +492,6 @@ ipcMain.handle('generate-story-text', async (event, data) => {
     })
     store.set('generationHistory', history.slice(0, 50))
 
-    // Повертаємо успіх, щоб фронтенд міг запустити наступний етап (Картинки/Аудіо)
     return { success: true, textToSpeak: finalContent, folderPath: finalPath }
   } catch (error) {
     console.error('Story Gen Error:', error)

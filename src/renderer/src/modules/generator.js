@@ -115,9 +115,17 @@ export async function updateVoiceList() {
   if (provider === 'edge') {
     voicesToRender = EDGE_VOICES.filter((v) => v.value.startsWith(langCode))
   } else {
-    // GenAI / Custom Voices
     const favorites = getFavorites()
-    const filteredFavs = favorites.filter((v) => v.language === langCode || v.language === 'all')
+
+    const filteredFavs = favorites.filter((v) => {
+      const isCorrectLang = v.language === langCode || v.language === 'all'
+
+      if (provider === '11labs') {
+        return isCorrectLang && v.service === '11labs'
+      } else {
+        return isCorrectLang && (v.service === 'genai' || !v.service)
+      }
+    })
 
     voicesToRender = filteredFavs.map((v) => ({
       name: `⭐ ${v.name}`,

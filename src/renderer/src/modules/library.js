@@ -293,13 +293,20 @@ function setupFavoritesActions() {
     const name = document.getElementById('favVoiceName').value.trim()
     const id = document.getElementById('favVoiceIdInput').value.trim()
     const lang = document.getElementById('favVoiceLang').value
+    // Get the selected service type
+    const service = document.getElementById('favVoiceService').value
+
     if (!name || !id) return showToast('Info missing', 'error')
 
-    favoriteVoices.push({ name, voice_id: id, language: lang })
+    // Save with service tag
+    favoriteVoices.push({ name, voice_id: id, language: lang, service: service })
+
     await window.api.saveSetting('favoriteVoices', favoriteVoices)
     renderFavoritesList()
     showToast('Favorite Added', 'success')
     window.dispatchEvent(new Event('favorites-updated'))
+
+    // Clear inputs
     document.getElementById('favVoiceName').value = ''
     document.getElementById('favVoiceIdInput').value = ''
   })
@@ -313,11 +320,18 @@ function renderFavoritesList() {
     : '<li style="color:#555;text-align:center;">No favorites</li>'
 
   favoriteVoices.forEach((v) => {
+    // Default to genai if service is undefined (legacy support)
+    const srv = v.service === '11labs' ? '11LABS' : 'GENAI'
+    const badgeColor = v.service === '11labs' ? '#a5f' : '#4af'
+
     const li = document.createElement('li')
     li.innerHTML = `
       <div class="fav-chip">
          <div style="display:flex; flex-direction:column;">
-            <strong>${v.name}</strong>
+            <div style="display:flex; align-items:center; gap:5px;">
+                <strong>${v.name}</strong>
+                <span style="font-size:9px; background:${badgeColor}; color:#000; padding:1px 3px; border-radius:3px;">${srv}</span>
+            </div>
             <small style="color:#666; font-size:10px;">${v.language.toUpperCase()}</small>
          </div>
          <button class="btn-remove-fav"><i class="fa-solid fa-xmark"></i></button>

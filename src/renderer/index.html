@@ -185,6 +185,15 @@
                   <div class="panel-body">
                     <div class="add-voice-form">
                       <div class="input-row">
+                        <select
+                          id="favVoiceService"
+                          class="input-sm"
+                          style="width: 100px; margin-right: 5px"
+                        >
+                          <option value="genai">GenAI</option>
+                          <option value="11labs">11 Labs</option>
+                        </select>
+
                         <input
                           type="text"
                           id="favVoiceName"
@@ -358,6 +367,14 @@
                   </div>
                   <button id="btnSaveGenAiKey" class="btn-secondary">Save</button>
                 </div>
+                <div class="form-group mt-2">
+                  <label>11 Labs Audio Key (voiceapi)</label>
+                  <div class="password-wrapper">
+                    <input type="password" id="elevenLabsAudioKeyInput" />
+                    <i class="fa-solid fa-eye toggle-btn" id="btnToggleElevenAudioKey"></i>
+                  </div>
+                  <button id="btnSaveElevenAudioKey" class="btn-secondary">Save</button>
+                </div>
 
                 <div class="form-group mt-2">
                   <label>11 Labs Image Token</label>
@@ -429,6 +446,7 @@
                   <div class="toggle-switch-group" id="tts-toggles">
                     <button class="toggle-option active" data-value="edge">Edge TTS</button>
                     <button class="toggle-option" data-value="genai">GenAI</button>
+                    <button class="toggle-option" data-value="11labs">11 Labs Audio</button>
                   </div>
                   <input type="hidden" id="ttsProvider" value="edge" />
                 </div>

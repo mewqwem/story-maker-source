@@ -8,7 +8,7 @@ import { showToast } from './ui.js'
 export async function initSettings() {
   await loadSettingsData()
   setupSettingsListeners()
-  setupAiEngineListeners() // <--- Added this
+  setupAiEngineListeners()
 }
 
 async function loadSettingsData() {
@@ -29,6 +29,8 @@ async function loadSettingsData() {
   await fill('apiKey', 'apiKeyInput')
   await fill('genAiKey', 'genAiKeyInput')
   await fill('elevenLabsImgKey', 'elevenLabsImgKeyInput')
+  await fill('elevenAudioKey', 'elevenLabsAudioKeyInput') // <--- NEW: Завантажуємо ключ аудіо
+
   await fill('outputDir', 'outputFolderDisplay')
   await fill('customFfmpegPath', 'ffmpegPathDisplay')
   await fill('promptPath', 'promptFileDisplay')
@@ -88,20 +90,31 @@ function setupSettingsListeners() {
     'btnSaveElevenLabsImgKey',
     'elevenLabsImgKeyInput',
     'elevenLabsImgKey',
-    '11Labs Token Saved!'
+    '11Labs Image Token Saved!'
   )
+  // <--- NEW: Збереження ключа для аудіо
+  bindSave(
+    'btnSaveElevenAudioKey',
+    'elevenLabsAudioKeyInput',
+    'elevenAudioKey',
+    '11Labs Audio Key Saved!'
+  )
+
   bindSave('btnSaveEdgePath', 'edgeTtsPathInput', 'edgeTtsPath', 'Edge TTS Path Saved!')
 
   // Password Visibility
   bindToggle('btnToggleKey', 'apiKeyInput')
   bindToggle('btnToggleGenAiKey', 'genAiKeyInput')
   bindToggle('btnToggleElevenImgKey', 'elevenLabsImgKeyInput')
+  bindToggle('btnToggleElevenAudioKey', 'elevenLabsAudioKeyInput') // <--- NEW: Перемикач видимості
 
   setupPathSelectors()
 }
 
 function setupAiEngineListeners() {
-  // 1. Toggle Groups (TTS and Image Providers)
+  // Цю функцію чіпати не потрібно, вона автоматично підхопить третю кнопку
+  // тому що використовує querySelectorAll('.toggle-option')
+
   const groups = document.querySelectorAll('.toggle-switch-group')
 
   groups.forEach((group) => {

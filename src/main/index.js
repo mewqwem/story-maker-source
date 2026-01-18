@@ -13,6 +13,7 @@ import { autoUpdater } from 'electron-updater'
 // --- CONSTANTS & CONFIG ---
 const IMAGE_API_URL = 'https://voiceapi.csv666.ru/api/v1'
 const GENAI_API_URL = 'https://genaipro.vn/api/v1'
+const VOICE_API_URL = 'https://voiceapi.csv666.ru'
 
 const execPromise = promisify(exec)
 const store = new Store()
@@ -224,6 +225,94 @@ async function downloadPollinationsImage(prompt, outputPath) {
     writer.on('finish', resolve)
     writer.on('error', reject)
   })
+}
+async function generate11LabsAudio(text, voiceId, token, outputPath) {
+  sendLog('🎙️ 11Labs Audio: Creating task...')
+  const apiKey = token.trim()
+
+  try {
+    const createResponse = await axios.post(
+      `${VOICE_API_URL}/tasks`,
+      {
+        text: text,
+        template_uuid: voiceId
+      },
+      {
+        headers: {
+          'X-API-Key': apiKey,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+
+    const taskId = createResponse.data.task_id
+    if (!taskId) throw new Error('11Labs Audio: No Task ID returned')
+
+    sendLog(`🎙️ Task started (ID: ${taskId}). Waiting for result...`)
+
+    // 2. Очікування та скачування
+    let attempts = 0
+    const maxAttempts = 450 // Чекаємо до 15 хв
+
+    while (attempts < maxAttempts) {
+      await sleep(2000)
+
+      const statusRes = await axios.get(`${VOICE_API_URL}/tasks/${taskId}/status`, {
+        headers: { 'X-API-Key': apiKey }
+      })
+
+      const status = statusRes.data.status
+      console.log(`[11Labs] Status: ${status} (Attempt ${attempts})`)
+
+      // Якщо статус ending або ending_processed — качаємо
+      if (status === 'ending' || status === 'ending_processed') {
+        sendLog('🎙️ Status is ready. Downloading file...')
+
+        const writer = fs.createWriteStream(outputPath)
+
+        const response = await axios({
+          method: 'GET',
+          url: `${VOICE_API_URL}/tasks/${taskId}/result`,
+          headers: { 'X-API-Key': apiKey },
+          responseType: 'stream'
+        })
+
+        // Перевірка: якщо сервер раптом повернув JSON з помилкою замість файлу
+        if (
+          response.headers['content-type'] &&
+          response.headers['content-type'].includes('application/json')
+        ) {
+          throw new Error(
+            'Server returned JSON instead of Audio file (Check Voice ID/Template UUID)'
+          )
+        }
+
+        response.data.pipe(writer)
+
+        return new Promise((resolve, reject) => {
+          writer.on('finish', () => {
+            sendLog('✅ Audio downloaded successfully.')
+            resolve()
+          })
+          writer.on('error', (err) => {
+            console.error('File Write Error:', err)
+            reject(err)
+          })
+        })
+      }
+
+      if (status === 'error') {
+        throw new Error('11Labs Audio Task returned Error status from server')
+      }
+
+      attempts++
+    }
+
+    throw new Error('11Labs Audio: Generation timed out')
+  } catch (err) {
+    console.error('11Labs Audio API Error:', err.response ? err.response.data : err.message)
+    throw new Error(`11Labs Audio Failed: ${err.message}`)
+  }
 }
 
 async function generateGenAiAudio(text, voiceId, token, outputPath) {
@@ -554,14 +643,19 @@ ipcMain.handle('generate-audio-only', async (event, data) => {
       const gToken = store.get('genAiKey')
       if (!gToken) throw new Error('GenAI Token missing!')
       await generateGenAiAudio(text, voice, gToken, audioPath)
+    } else if (ttsProvider === '11labs') {
+      // NEW BLOCK
+      const eToken = store.get('elevenAudioKey') // Make sure to save this key in settings.js logic
+      if (!eToken) throw new Error('11 Labs Audio Key is missing!')
+      await generate11LabsAudio(text, voice, eToken, audioPath)
     } else {
+      // Edge TTS logic...
       sendLog('🎙️ Generating Edge TTS Audio...')
       const cleanText = text.replace(/["`]/g, '').replace(/\n/g, ' ')
       const tempPath = join(folderPath, 'temp_tts.txt')
       await fs.writeFile(tempPath, cleanText, 'utf8')
 
       const edgePath = store.get('edgeTtsPath') || 'edge-tts'
-      // ВИПРАВЛЕНО: Прибрали --encoding utf-8
       const command = `"${edgePath}" --file "${tempPath}" --write-media "${audioPath}" --voice ${voice}`
 
       await execPromise(command)

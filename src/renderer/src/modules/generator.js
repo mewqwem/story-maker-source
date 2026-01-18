@@ -5,6 +5,7 @@
 
 import { showToast } from './ui.js'
 import { getFavorites, getPromptText, getSeoPromptText, getImagePromptText } from './library.js'
+
 // --- CONSTANTS ---
 const LANG_CODE_MAP = {
   English: 'en',
@@ -93,7 +94,7 @@ function setupGeneratorListeners() {
     })
   }
 
-  // 6. Listen for Favorites Updates (NEW)
+  // 6. Listen for Favorites Updates
   window.addEventListener('favorites-updated', () => {
     updateVoiceList()
   })
@@ -134,8 +135,6 @@ export async function updateVoiceList() {
   })
 }
 
-// ... (Rest of the file: startProcess, confirmAudioGeneration, setupStatusSystem remains same)
-// Just keep the rest of your generator.js file code here
 // --- PROCESS: STEP 1 (TEXT GENERATION) ---
 async function startProcess() {
   const projectName = document.getElementById('projectName').value
@@ -143,7 +142,6 @@ async function startProcess() {
   const templateKey = document.getElementById('selectedTemplate').value
   const seoTemplateKey = document.getElementById('selectedSeoTemplate').value
 
-  // 👇 НОВІ ПОЛЯ
   const imageTemplateKey = document.getElementById('selectedImageTemplate').value
   const imageCount = parseInt(document.getElementById('totalImagesCount').value) || 15
 
@@ -159,7 +157,6 @@ async function startProcess() {
   if (!templateKey) {
     return showToast('❌ Please select a Story Template!', 'error')
   }
-  // 👇 ВАЛІДАЦІЯ КАРТИНОК
   if (!imageTemplateKey) {
     return showToast('❌ Please select an Image Style Template!', 'error')
   }
@@ -167,11 +164,14 @@ async function startProcess() {
   // Get content from Library getters
   const templateText = getPromptText(templateKey)
   const seoPrompt = getSeoPromptText(seoTemplateKey)
-  // 👇 ОТРИМУЄМО ТЕКСТ ПРОМПТУ КАРТИНОК
   const imagePrompt = getImagePromptText(imageTemplateKey)
 
+  // --- DEBUG LOG: ПЕРЕВІРЯЄМО, ЧИ Є ТЕКСТ ---
+  console.log('🚀 Start Process Clicked')
+  console.log('📝 Template Text:', templateText)
+
   if (!templateText) {
-    return showToast('❌ Error: Template content not found.', 'error')
+    return showToast('❌ Error: Template content not found in Library.', 'error')
   }
 
   // UI Updates
@@ -192,7 +192,7 @@ async function startProcess() {
   // Payload for TEXT generation
   const payload = {
     projectName,
-    templateText,
+    storyPrompt: templateText, // ⚠️ ВАЖЛИВО: Ми перейменовуємо templateText на storyPrompt для бекенду!
     seoPrompt,
     title,
     language,
@@ -210,7 +210,6 @@ async function startProcess() {
         folderPath: result.folderPath,
         voice: document.getElementById('voice').value,
         ttsProvider: document.getElementById('ttsProvider').value,
-        // 👇 ЗБЕРІГАЄМО ПРОМПТ І КІЛЬКІСТЬ ДЛЯ НАСТУПНОГО КРОКУ
         imagePrompt: imagePrompt,
         imageCount: imageCount
       }
@@ -250,7 +249,6 @@ async function confirmAudioGeneration() {
       voice: tempGenerationData.voice,
       ttsProvider: tempGenerationData.ttsProvider,
       folderPath: tempGenerationData.folderPath,
-      // 👇 ПЕРЕДАЄМО РЕАЛЬНІ ДАНІ, ЯКІ МИ ЗБЕРЕГЛИ В startProcess
       imagePrompt: tempGenerationData.imagePrompt,
       imageCount: tempGenerationData.imageCount
     }

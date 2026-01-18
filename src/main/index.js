@@ -357,21 +357,34 @@ async function createVideoFromProject(folderPath) {
 // --- IPC HANDLERS: GENERATION FLOW ---
 
 ipcMain.handle('generate-story-text', async (event, data) => {
-  const { projectName, seoPrompt, title, language, outputFolder, modelName, targetLength } = data
+  // storyPrompt - це текст шаблону, який прийшов з library.json (через фронтенд)
+  const {
+    projectName,
+    storyPrompt,
+    seoPrompt,
+    title,
+    language,
+    outputFolder,
+    modelName,
+    targetLength
+  } = data
 
   try {
     const apiKey = store.get('apiKey')
     if (!apiKey) throw new Error('Gemini API Key is missing.')
 
+    // 1. ПЕРЕВІРКА: Чи прийшов шаблон?
+    if (!storyPrompt || typeof storyPrompt !== 'string') {
+      throw new Error('Template (storyPrompt) is missing or empty! Check your frontend logic.')
+    }
+
     const genAI = new GoogleGenerativeAI(apiKey)
     const selectedModel = modelName || 'gemini-2.0-flash'
     const model = genAI.getGenerativeModel({ model: selectedModel })
 
-    // --- САНІТАРИЗАЦІЯ ПАПКИ ---
-    // Видаляємо все, крім англійських літер, цифр та підкреслення.
-    // Замінюємо пробіли на підкреслення.
+    // 2. СТВОРЕННЯ ПАПКИ
     const safeProjectName = projectName
-      .replace(/[а-яА-ЯіІїЇєЄґҐ]/g, 'ua') // примітивна транслітерація
+      .replace(/[а-яА-ЯіІїЇєЄґҐ]/g, 'ua')
       .replace(/[^a-zA-Z0-9]/g, '_')
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
@@ -380,84 +393,110 @@ ipcMain.handle('generate-story-text', async (event, data) => {
 
     await fs.ensureDir(finalPath)
 
-    sendLog('📋 Generating Story Outline...')
+    sendLog('✍️ Starting Story Generation...')
 
-    const outlinePrompt = `
-      You are an elite Story Architect.
-      INPUT: Title: "${title}", Length: ${targetLength}, Lang: ${language}
-      TASK: Create a JSON chapter plan.
-      FORMAT: { "plan": [{ "id": 1, "type": "...", "description": "...", "estimated_chars": 2000 }] }
-      RETURN JSON ONLY.
+    // 3. ПІДГОТОВКА ПРОМПТУ (Підстановка змінних у шаблон)
+    // Шаблон у library.json може мати вигляд: "Write a story about {title} in {language}..."
+    // Ми замінюємо ці слова на реальні значення.
+    let finalInitialPrompt = storyPrompt
+      .replace(/{title}/gi, title)
+      .replace(/{language}/gi, language)
+      .replace(/{length}/gi, targetLength || 'medium')
+      .replace(/{projectName}/gi, projectName)
+
+    // Додаємо технічні правила в кінець, щоб цикл працював, навіть якщо їх немає в шаблоні
+    const systemRules = `
+      \n\nSYSTEM RULES (MUST FOLLOW):
+      1. Write the story in parts. Do NOT write the whole story at once.
+      2. At the end of a part, write exactly "CONTINUE" if not finished.
+      3. If the story is completely finished, write exactly "END".
+      4. Language: ${language}.
+      5. No markdown headers.
     `
-    const outlineResult = await model.generateContent(outlinePrompt)
-    const outlineText = outlineResult.response
-      .text()
-      .replace(/```json|```/g, '')
-      .trim()
 
-    let planArray = []
-    try {
-      const parsed = JSON.parse(outlineText)
-      planArray = parsed.plan || []
-      await fs.writeJson(join(finalPath, 'outline.json'), parsed, { spaces: 2 })
-    } catch (e) {
-      throw new Error('Invalid Outline JSON')
-    }
+    // Перше повідомлення: Шаблон + Правила
+    let nextMessage = finalInitialPrompt + systemRules
 
     const chat = model.startChat({ history: [] })
-    await chat.sendMessage(`SYSTEM: Write ONLY story text. Lang: ${language}. No markdown headers.`)
-
     let fullStoryText = ''
-    for (let i = 0; i < planArray.length; i++) {
-      const part = planArray[i]
-      sendLog(`✍️ Writing Part ${part.id}/${planArray.length}...`)
+    let isFinished = false
+    let iteration = 0
 
-      const targetWords = Math.round((part.estimated_chars || 1500) / 6)
-      const strictPrompt = `
-        Write Part ${part.id}.
-        Plot details: ${part.description}.
-        CRITICAL CONSTRAINT: Write approximately ${targetWords} words.
-        DO NOT write too much. Keep it concise.
-      `
+    // 4. ЦИКЛ ГЕНЕРАЦІЇ
+    while (!isFinished && iteration < 30) {
+      iteration++
+      sendLog(`✍️ Writing part ${iteration}...`)
 
-      let retries = 3
-      while (retries > 0) {
-        try {
-          const res = await chat.sendMessage(strictPrompt)
-          let txt = res.response
-            .text()
-            .replace(/```[a-z]*\n?|```/g, '')
-            .replace(/(\*\*|__)(.*?)\1/g, '$2')
-            .replace(/^Part \d+[:.]?/im, '')
-            .trim()
-          fullStoryText += txt + '\n\n'
-          await sleep(2000)
-          break
-        } catch (err) {
-          retries--
-          if (retries === 0) throw err
-          await sleep(5000)
+      try {
+        // Відправляємо повідомлення (перший раз - промпт, далі - 'continue')
+        const result = await chat.sendMessage(nextMessage)
+        const rawText = result.response.text()
+
+        // Чистимо текст від службових слів
+        let cleanChunk = rawText
+          .replace(/CONTINUE/gi, '')
+          .replace('Type ‘CONTINUE’ to receive the next part.', '')
+          .replace(/END/gi, '')
+          .replace(/\*\*/g, '')
+          .replace(/##/g, '')
+          .trim()
+
+        if (cleanChunk) {
+          fullStoryText += cleanChunk + '\n\n'
         }
+
+        // Перевіряємо тригери
+        if (rawText.includes('END')) {
+          isFinished = true
+          sendLog('✅ Story finished by AI.')
+        } else {
+          // Якщо AI забув написати CONTINUE, але й END не написав — продовжуємо
+          nextMessage = 'continue'
+          await sleep(2000)
+        }
+      } catch (err) {
+        console.error(`Generation Error at part ${iteration}:`, err)
+        // Якщо помилка (наприклад, перевантаження), пробуємо зберегти те, що є і вийти
+        break
       }
     }
 
+    // 5. ЗБЕРЕЖЕННЯ
     const finalContent = fullStoryText.trim()
+    if (!finalContent) throw new Error('AI produced empty text.')
+
     await fs.writeFile(join(finalPath, 'story.txt'), finalContent)
 
+    // 6. SEO (Використовуємо твій шаблон для SEO або дефолтний)
     sendLog('📝 Generating SEO...')
     try {
-      const seoP = seoPrompt || `Write viral YouTube Title, Desc, Hashtags. Lang: ${language}.`
-      const descRes = await chat.sendMessage(seoP)
-      await fs.writeFile(join(finalPath, 'description.txt'), descRes.response.text().trim())
-    } catch (e) {}
+      const seoTemplate =
+        seoPrompt ||
+        `Based on the story above, write YouTube Title, Description, Hashtags. Lang: ${language}.`
 
+      // Тут теж можна зробити підстановку, якщо в SEO шаблоні є змінні
+      const finalSeoPrompt = seoTemplate.replace(/{title}/gi, title)
+
+      const descRes = await chat.sendMessage(finalSeoPrompt)
+      await fs.writeFile(join(finalPath, 'description.txt'), descRes.response.text().trim())
+    } catch (e) {
+      console.warn('SEO gen failed', e)
+    }
+
+    // 7. ІСТОРІЯ В ПРОГРАМІ
     const history = store.get('generationHistory', [])
-    history.unshift({ title, projectName, path: finalPath, date: new Date().toLocaleString() })
+    history.unshift({
+      title: projectName,
+      projectName,
+      path: finalPath,
+      date: new Date().toLocaleString()
+    })
     store.set('generationHistory', history.slice(0, 50))
 
+    // Повертаємо успіх, щоб фронтенд міг запустити наступний етап (Картинки/Аудіо)
     return { success: true, textToSpeak: finalContent, folderPath: finalPath }
   } catch (error) {
-    console.error('Stage 1 Error:', error)
+    console.error('Story Gen Error:', error)
     return { success: false, error: error.message }
   }
 })

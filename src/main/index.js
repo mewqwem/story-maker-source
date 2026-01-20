@@ -540,7 +540,14 @@ ipcMain.handle('generate-story-text', async (event, data) => {
           sendLog('✅ Story finished by AI.')
         } else {
           // Нагадуємо "continue", але можна ще раз нагадати про мову, якщо треба
-          nextMessage = 'continue'
+          nextMessage = `
+          Great. Now write the NEXT part of the story. 
+          - Move the plot forward. 
+          - Do NOT repeat scenes. 
+          - Introduce new challenges or dialogue.
+          - Language: ${language}
+          (Remember: do not write the end until the story is fully resolved)
+        `
           await sleep(2000)
         }
       } catch (err) {

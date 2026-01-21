@@ -543,7 +543,7 @@ ipcMain.handle('generate-story-text', async (event, data) => {
           nextMessage = `
           Great. Now write the NEXT part of the story. 
           - Move the plot forward. 
-          - Do NOT repeat scenes. 
+          - Do NOT repeat scenes.
           - Language: ${language}
           (Remember: do not write the end until the story is fully resolved)
         `

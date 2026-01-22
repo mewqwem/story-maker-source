@@ -316,6 +316,56 @@ button {
   color: var(--text-main);
   background: rgba(255, 255, 255, 0.05);
 }
+/* Hide default checkbox */
+.form-group input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 24px;
+  width: 44px;
+  background-color: #363a42;
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.3s ease;
+  outline: none;
+}
+
+/* The toggle circle */
+.form-group input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Checked state */
+.form-group input[type='checkbox']:checked {
+  background-color: #3b82f6; /* Blue accent */
+}
+
+.form-group input[type='checkbox']:checked::after {
+  transform: translateX(20px);
+}
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.checkbox-label {
+  font-size: 15px !important;
+  justify-content: center !important;
+  text-align: center !important;
+  color: var(--text-main);
+  font-weight: 500;
+}
+
 /* #endregion */
 
 /* #region 5. GENERATOR PAGE */
@@ -372,7 +422,7 @@ button {
   color: var(--text-main);
 }
 
-.form-group {
+.form-group:not(:last-child) {
   margin-bottom: 16px;
 }
 .form-group label {

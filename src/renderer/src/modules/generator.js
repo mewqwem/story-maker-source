@@ -98,6 +98,42 @@ function setupGeneratorListeners() {
   window.addEventListener('favorites-updated', () => {
     updateVoiceList()
   })
+
+  // --- NEW: VISUAL MODE LISTENERS ---
+  const btnModeImages = document.getElementById('btnModeImages')
+  const btnModeVideo = document.getElementById('btnModeVideo')
+  const panelImages = document.getElementById('settings-images-panel')
+  const panelVideo = document.getElementById('settings-video-panel')
+  const visualModeInput = document.getElementById('visualMode')
+  const btnSelectBgVideo = document.getElementById('btnSelectBgVideo')
+  const bgVideoPathDisplay = document.getElementById('bgVideoPathDisplay')
+
+  if (btnModeImages && btnModeVideo) {
+    btnModeImages.addEventListener('click', () => {
+      btnModeImages.classList.add('active')
+      btnModeVideo.classList.remove('active')
+      panelImages.style.display = 'block'
+      panelVideo.style.display = 'none'
+      visualModeInput.value = 'images'
+    })
+
+    btnModeVideo.addEventListener('click', () => {
+      btnModeVideo.classList.add('active')
+      btnModeImages.classList.remove('active')
+      panelImages.style.display = 'none'
+      panelVideo.style.display = 'block'
+      visualModeInput.value = 'video'
+    })
+  }
+
+  if (btnSelectBgVideo) {
+    btnSelectBgVideo.addEventListener('click', async () => {
+      const filePath = await window.api.selectFile(['mp4', 'mov', 'avi', 'mkv'])
+      if (filePath) {
+        bgVideoPathDisplay.value = filePath
+      }
+    })
+  }
 }
 
 export async function updateVoiceList() {
@@ -149,14 +185,15 @@ async function startProcess() {
   const title = document.getElementById('storyTitle').value
   const templateKey = document.getElementById('selectedTemplate').value
   const seoTemplateKey = document.getElementById('selectedSeoTemplate').value
-
-  const imageTemplateKey = document.getElementById('selectedImageTemplate').value
-  const imageCount = parseInt(document.getElementById('totalImagesCount').value) || 15
-
   const outputFolder = document.getElementById('outputFolderDisplay').value
   const targetLength = parseInt(document.getElementById('storyLength').value) || 25000
   const modelName = document.getElementById('modelSelect')?.value || 'gemini-2.0-flash'
   const language = document.getElementById('language').value
+
+  // Get Visual Settings (Check Mode)
+  const visualMode = document.getElementById('visualMode').value
+  const imageTemplateKey = document.getElementById('selectedImageTemplate').value
+  const bgVideoPath = document.getElementById('bgVideoPathDisplay').value
 
   // Validation
   if (!projectName || !title || !outputFolder) {
@@ -165,18 +202,20 @@ async function startProcess() {
   if (!templateKey) {
     return showToast('❌ Please select a Story Template!', 'error')
   }
-  if (!imageTemplateKey) {
+
+  // Validate visual mode specific inputs
+  if (visualMode === 'images' && !imageTemplateKey) {
     return showToast('❌ Please select an Image Style Template!', 'error')
   }
+  if (visualMode === 'video' && !bgVideoPath) {
+    return showToast('❌ Please select a Background Video file!', 'error')
+  }
 
-  // Get content from Library getters
+  // Get content from Library
   const templateText = getPromptText(templateKey)
   const seoPrompt = getSeoPromptText(seoTemplateKey)
-  const imagePrompt = getImagePromptText(imageTemplateKey)
-
-  // --- DEBUG LOG: ПЕРЕВІРЯЄМО, ЧИ Є ТЕКСТ ---
-  console.log('🚀 Start Process Clicked')
-  console.log('📝 Template Text:', templateText)
+  // Image prompt is only needed if mode is 'images'
+  const imagePrompt = visualMode === 'images' ? getImagePromptText(imageTemplateKey) : ''
 
   if (!templateText) {
     return showToast('❌ Error: Template content not found in Library.', 'error')
@@ -192,8 +231,6 @@ async function startProcess() {
   // Reset logs logic...
   const popFolder = document.getElementById('pop-folder')
   if (popFolder) popFolder.innerText = outputFolder
-  const popDetails = document.getElementById('pop-details')
-  if (popDetails) popDetails.innerHTML = ''
   const popMsg = document.getElementById('pop-msg')
   if (popMsg) popMsg.innerText = 'Starting...'
 
@@ -213,13 +250,17 @@ async function startProcess() {
     const result = await window.api.generateStoryText(payload)
 
     if (result.success) {
-      // Store data for next step (AUDIO & IMAGE)
+      // Store data for next step (AUDIO & MEDIA)
       tempGenerationData = {
         folderPath: result.folderPath,
         voice: document.getElementById('voice').value,
         ttsProvider: document.getElementById('ttsProvider').value,
         imagePrompt: imagePrompt,
-        imageCount: imageCount
+        imageCount: document.getElementById('totalImagesCount').value,
+        makeSubtitles: document.getElementById('makeSubtitles').checked,
+        language: language, // Pass language to fix Whisper!
+        visualMode: visualMode,
+        bgVideoPath: bgVideoPath
       }
 
       // Show Preview Modal
@@ -258,7 +299,11 @@ async function confirmAudioGeneration() {
       ttsProvider: tempGenerationData.ttsProvider,
       folderPath: tempGenerationData.folderPath,
       imagePrompt: tempGenerationData.imagePrompt,
-      imageCount: tempGenerationData.imageCount
+      imageCount: tempGenerationData.imageCount,
+      makeSubtitles: tempGenerationData.makeSubtitles,
+      language: tempGenerationData.language,
+      visualMode: tempGenerationData.visualMode,
+      bgVideoPath: tempGenerationData.bgVideoPath
     }
 
     const result = await window.api.generateAudioOnly(payload)
@@ -280,12 +325,10 @@ async function confirmAudioGeneration() {
 
 // --- STATUS SYSTEM ---
 function setupStatusSystem() {
-  // Listen for log updates from Main Process
   window.api.onLogUpdate((msg) => {
     updateStatusDisplay(msg)
   })
 
-  // Status Indicator Click (Toggle Popover)
   const statusInd = document.getElementById('status-indicator')
   if (statusInd) {
     statusInd.onclick = () => {
@@ -298,14 +341,11 @@ function updateStatusDisplay(msg, type = 'normal') {
   const indicator = document.getElementById('status-indicator')
   const popMsg = document.getElementById('pop-msg')
 
-  // Safe check
   if (popMsg) popMsg.innerText = msg
-
   addDetailLog(msg, type)
 
-  if (!indicator) return // Exit if no indicator found
+  if (!indicator) return
 
-  // Update Indicator Color/Icon logic
   if (msg.includes('⚠️') || type === 'warning') {
     indicator.className = 'status-indicator warning'
   } else if (

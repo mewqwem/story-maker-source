@@ -161,6 +161,78 @@ ipcMain.handle('open-folder', async (e, path) => {
 })
 
 // --- HELPER FUNCTIONS ---
+function formatTimeSRT(seconds) {
+  const date = new Date(0)
+  date.setMilliseconds(seconds * 1000)
+  const hh = date.getUTCHours().toString().padStart(2, '0')
+  const mm = date.getUTCMinutes().toString().padStart(2, '0')
+  const ss = date.getUTCSeconds().toString().padStart(2, '0')
+  const ms = date.getUTCMilliseconds().toString().padStart(3, '0')
+  return `${hh}:${mm}:${ss},${ms}`
+}
+
+// Функція генерації SRT файлу через Whisper
+async function generateSrtWithWhisper(audioPath, srtPath, languageCode = 'auto') {
+  sendLog(`🎙️ Whisper: Initializing (Lang: ${languageCode})...`)
+
+  try {
+    const isDev = !app.isPackaged
+
+    // Шляхи до папки bin (локальний whisper.exe)
+    const binPath = isDev ? join(__dirname, '../../bin') : join(process.resourcesPath, 'bin')
+
+    const whisperExe = join(binPath, 'whisper.exe')
+    const modelPath = join(binPath, 'ggml-base.bin') // Або ggml-small.bin
+
+    if (!fs.existsSync(whisperExe)) throw new Error(`Whisper exe missing: ${whisperExe}`)
+    if (!fs.existsSync(modelPath)) throw new Error(`Model missing: ${modelPath}`)
+
+    // Підготовка аудіо (Конвертація в 16kHz WAV без метаданих)
+    const workDir = dirname(audioPath)
+    const tempWavName = 'temp_clean.wav'
+    const tempWavPath = join(workDir, tempWavName)
+
+    let ffmpegCmd = store.get('customFfmpegPath') || 'ffmpeg'
+    ffmpegCmd = ffmpegCmd.replace(/"/g, '')
+
+    sendLog('🎙️ Converting audio to 16kHz WAV...')
+    const convertCmd = `"${ffmpegCmd}" -y -i "${audioPath}" -ar 16000 -ac 1 -c:a pcm_s16le -map_metadata -1 -fflags +bitexact "${tempWavPath}"`
+    await execPromise(convertCmd)
+
+    // Запуск Whisper
+    const outputBase = 'subtitles'
+
+    const runCmd = `"${whisperExe}" -m "${modelPath}" -f "${tempWavName}" -osrt -of "${outputBase}" -l ${languageCode} --max-len 60`
+
+    sendLog('🎙️ Running Whisper AI (Max-len 80)...')
+    await execPromise(runCmd, { cwd: workDir })
+
+    // Чистка і перевірка
+    fs.unlink(tempWavPath).catch(() => {})
+    const generatedFile = join(workDir, outputBase + '.srt')
+
+    if (fs.existsSync(generatedFile)) {
+      if (generatedFile !== srtPath) await fs.move(generatedFile, srtPath, { overwrite: true })
+      sendLog('✅ SRT generated successfully.')
+      return true
+    } else {
+      // Check fallback name
+      const weirdFile = join(workDir, tempWavName + '.srt')
+      if (fs.existsSync(weirdFile)) {
+        await fs.move(weirdFile, srtPath, { overwrite: true })
+        return true
+      }
+      console.warn('Whisper finished but no SRT file found (maybe silence).')
+      return false // Не кидаємо помилку, просто йдемо далі без субтитрів
+    }
+  } catch (error) {
+    console.error('Whisper Failed:', error)
+    sendLog(`⚠️ Whisper Error: ${error.message}`)
+    return false
+  }
+}
+
+// --- ОНОВЛЕНИЙ ОБРОБНИК GENERATE-AUDIO-ONLY ---
 
 const sendLog = (msg) => {
   if (mainWindow) mainWindow.webContents.send('log-update', msg)
@@ -350,16 +422,49 @@ async function generateGenAiAudio(text, voiceId, token, outputPath) {
     writer.on('error', reject)
   })
 }
+async function addFadeEffectToSrt(srtPath) {
+  try {
+    // 🔥 ВАЖЛИВО: Перевіряємо, чи існує файл перед тим, як його читати
+    // Якщо файлу немає (бо ти зняв галочку), ми просто виходимо з функції
+    if (!fs.existsSync(srtPath)) {
+      return
+    }
 
-// --- LOGIC FOR VIDEO LOOPING (FIXED RELATIVE PATHS) ---
-async function createVideoFromProject(folderPath) {
+    let content = await fs.readFile(srtPath, 'utf8')
+
+    // Регулярний вираз шукає текст субтитрів і додає тег {\fad(400,0)}
+    // Це означає: плавна поява за 400мс (0.4с)
+    const lines = content.split('\n')
+    const newLines = lines.map((line) => {
+      // Пропускаємо порожні рядки, номери (цифри) і таймкоди (-->)
+      if (!line.trim() || /^\d+$/.test(line.trim()) || line.includes('-->')) {
+        return line
+      }
+
+      // Перевірка, щоб не додавати тег двічі
+      if (line.includes('{\\fad')) return line
+
+      // Додаємо тег перед текстом
+      return `{\\fad(400,0)}${line}`
+    })
+
+    await fs.writeFile(srtPath, newLines.join('\n'), 'utf8')
+    console.log('✅ Animation tags added to SRT.')
+  } catch (e) {
+    // Тепер помилка ENOENT не повинна з'являтися, але лог залишаємо
+    console.error('Failed to add fade effects:', e)
+  }
+}
+
+// --- ОНОВЛЕНА ФУНКЦІЯ createVideoFromProject ---
+async function createVideoFromProject(folderPath, visualMode = 'images') {
   try {
     const audioName = 'audio.mp3'
     const videoName = 'video.mp4'
-    const audioPath = join(folderPath, audioName)
-    const imagesDir = join(folderPath, 'images')
+    const srtName = 'subtitles.srt'
 
-    if (!fs.existsSync(audioPath)) throw new Error('Audio not found!')
+    const audioPath = join(folderPath, audioName)
+    const srtPath = join(folderPath, srtName)
 
     let ffmpegCmd = store.get('customFfmpegPath') || 'ffmpeg'
     ffmpegCmd = ffmpegCmd.replace(/"/g, '')
@@ -369,77 +474,121 @@ async function createVideoFromProject(folderPath) {
     const audioDuration = await getAudioDuration(audioPath, ffmpegCmd)
     sendLog(`ℹ️ Audio Duration: ${audioDuration}s`)
 
-    // 2. Get Images
-    if (!fs.existsSync(imagesDir)) throw new Error('Images folder missing!')
-    const files = await fs.readdir(imagesDir)
-    const uniqueImages = files
-      .filter((f) => f.endsWith('.jpg') || f.endsWith('.png'))
-      .sort((a, b) => (parseInt(a.match(/\d+/)) || 0) - (parseInt(b.match(/\d+/)) || 0))
-
-    if (uniqueImages.length === 0) throw new Error('No images found!')
-
-    sendLog(`🎬 Found ${uniqueImages.length} images for video.`)
+    // Підготовка фільтра субтитрів (UTF-8)
+    let subtitlesFilter = ''
+    if (fs.existsSync(srtPath)) {
+      // Використовуємо :charenc=UTF-8 щоб уникнути крякозябрів
+      // Відносний шлях srtName працює краще з execOptions.cwd
+      subtitlesFilter = `,subtitles='${srtName}':charenc=UTF-8:force_style='Fontname=Merriweather Light,Fontsize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=0,Outline=0.5,Shadow=0.5,MarginV=25,Alignment=2'`
+    }
 
     const execOptions = { cwd: folderPath }
 
-    // --- CASE A: SINGLE IMAGE ---
-    if (uniqueImages.length === 1) {
-      const relImgPath = `images/${uniqueImages[0]}`
-      const command = `"${ffmpegCmd}" -y -loop 1 -i "${relImgPath}" -i "${audioName}" -c:v libx264 -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest "${videoName}"`
+    // ============================
+    // РЕЖИМ 1: ВІДЕО-ЛУП
+    // ============================
+    if (visualMode === 'video') {
+      const bgVideo = 'source_bg.mp4'
+      if (!fs.existsSync(join(folderPath, bgVideo))) throw new Error('Source video missing!')
 
-      sendLog('🎬 Rendering single-image video...')
-      await execPromise(command, execOptions)
+      sendLog('🎬 Rendering looped video with subtitles...')
 
-      // --- CASE B: MULTIPLE IMAGES (SLIDESHOW) ---
-    } else {
-      const slideDuration = 20
-      const fadeDuration = 1
-      const effectiveSlideTime = slideDuration - fadeDuration
-      const totalSlidesNeeded = Math.ceil(audioDuration / effectiveSlideTime) + 1
+      // scale=1920:1080...crop... -> Робимо 16:9 і заповнюємо екран
+      const filter = `scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,setsar=1${subtitlesFilter}`
 
-      sendLog(`🎬 Rendering slideshow: need ${totalSlidesNeeded} slides loop...`)
-
-      let inputFilesList = []
-      for (let i = 0; i < totalSlidesNeeded; i++) {
-        const imgIndex = i % uniqueImages.length
-        inputFilesList.push(`images/${uniqueImages[imgIndex]}`)
-      }
-
-      let inputs = ''
-      inputFilesList.forEach((p) => {
-        inputs += `-loop 1 -t ${slideDuration} -i "${p}" `
-      })
-
-      let filter = ''
-      let lastLabel = '[0:v]'
-      let offset = slideDuration - fadeDuration
-
-      for (let i = 1; i < inputFilesList.length; i++) {
-        const nextLabel = `[${i}:v]`
-        const outLabel = `[v${i}]`
-        filter += `${lastLabel}${nextLabel}xfade=transition=fade:duration=${fadeDuration}:offset=${offset}${outLabel};`
-        lastLabel = outLabel
-        offset += slideDuration - fadeDuration
-      }
-
-      // --- ВИПРАВЛЕННЯ ТУТ ---
-      // Раніше ми обрізали ';' і ставили комою, що ламало потік.
-      // Тепер ми явно беремо lastLabel і передаємо його у format.
-      // Результат буде виглядати як: ...[v15];[v15]format=yuv420p[v]
-
-      filter += `${lastLabel}format=yuv420p[v]`
-
-      const command = `"${ffmpegCmd}" -y ${inputs} -i "${audioName}" -filter_complex "${filter}" -map "[v]" -map ${inputFilesList.length}:a -c:v libx264 -c:a aac -shortest "${videoName}"`
+      // -stream_loop -1: Нескінченний повтор відео
+      // -shortest: Обрізати по найкоротшому (по аудіо)
+      const command = `"${ffmpegCmd}" -y -stream_loop -1 -i "${bgVideo}" -i "${audioName}" -vf "${filter}" -map 0:v -map 1:a -c:v libx264 -preset fast -c:a aac -b:a 192k -shortest "${videoName}"`
 
       await execPromise(command, execOptions)
+    }
+    // ============================
+    // РЕЖИМ 2: КАРТИНКИ (СЛАЙД-ШОУ)
+    // ============================
+    else {
+      const imagesDir = join(folderPath, 'images')
+      if (!fs.existsSync(imagesDir)) throw new Error('Images folder missing!')
+
+      const files = await fs.readdir(imagesDir)
+      const uniqueImages = files
+        .filter((f) => f.endsWith('.jpg') || f.endsWith('.png'))
+        .sort((a, b) => (parseInt(a.match(/\d+/)) || 0) - (parseInt(b.match(/\d+/)) || 0))
+
+      if (uniqueImages.length === 0) throw new Error('No images found!')
+
+      sendLog(`🎬 Found ${uniqueImages.length} images for video.`)
+
+      // Налаштування стилю шрифту (Merriweather Light Italic)
+      const style =
+        'Fontname=Merriweather Light,Italic=1,Fontsize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0.5,MarginV=25,Alignment=2'
+
+      if (uniqueImages.length === 1) {
+        // Одне фото
+        const relImgPath = `images/${uniqueImages[0]}`
+
+        // Формуємо простий фільтр
+        let filter = 'format=yuv420p'
+        if (fs.existsSync(srtPath)) {
+          filter += `,subtitles='${srtName}':charenc=UTF-8:force_style='${style}'`
+        }
+
+        const command = `"${ffmpegCmd}" -y -loop 1 -i "${relImgPath}" -i "${audioName}" -vf "${filter}" -c:v libx264 -tune stillimage -c:a aac -b:a 192k -shortest "${videoName}"`
+        await execPromise(command, execOptions)
+      } else {
+        // Слайд-шоу (Багато фото)
+        const slideDuration = 20
+        const fadeDuration = 1
+        const effectiveSlideTime = slideDuration - fadeDuration
+        const totalSlidesNeeded = Math.ceil(audioDuration / effectiveSlideTime) + 1
+
+        let inputFilesList = []
+        // Дублюємо картинки, щоб вистачило на всю довжину аудіо
+        for (let i = 0; i < totalSlidesNeeded; i++) {
+          const imgIndex = i % uniqueImages.length
+          inputFilesList.push(`images/${uniqueImages[imgIndex]}`)
+        }
+
+        let inputs = ''
+        inputFilesList.forEach((p) => {
+          inputs += `-loop 1 -t ${slideDuration} -i "${p}" `
+        })
+
+        let filter = ''
+        let lastLabel = '[0:v]'
+        let offset = slideDuration - fadeDuration
+
+        // Генеруємо ланцюжок переходів (xfade)
+        for (let i = 1; i < inputFilesList.length; i++) {
+          const nextLabel = `[${i}:v]`
+          const outLabel = `[v${i}]`
+          filter += `${lastLabel}${nextLabel}xfade=transition=fade:duration=${fadeDuration}:offset=${offset}${outLabel};`
+          lastLabel = outLabel
+          offset += slideDuration - fadeDuration
+        }
+
+        // --- ФІНАЛЬНА ЗБІРКА ---
+        // 1. Беремо останній шматок відео (lastLabel)
+        // 2. Конвертуємо формат пікселів (format=yuv420p) -> зберігаємо в [v_pre]
+        // 3. Накладаємо субтитри на [v_pre] -> зберігаємо в [v]
+
+        if (fs.existsSync(srtPath)) {
+          // Якщо субтитри Є -> накладаємо їх
+          filter += `${lastLabel}format=yuv420p[v_pre];[v_pre]subtitles='${srtName}':charenc=UTF-8:force_style='${style}'[v]`
+        } else {
+          // Якщо субтитрів НЕМАЄ -> просто закриваємо ланцюжок відео
+          filter += `${lastLabel}format=yuv420p[v]`
+        }
+
+        const command = `"${ffmpegCmd}" -y ${inputs} -i "${audioName}" -filter_complex "${filter}" -map "[v]" -map ${inputFilesList.length}:a -c:v libx264 -c:a aac -shortest "${videoName}"`
+
+        await execPromise(command, execOptions)
+      }
     }
 
     sendLog('🚀 Video Rendered Successfully: video.mp4')
   } catch (err) {
     sendLog(`⚠️ Video Render Error: ${err.message}`)
     console.error(err)
-    if (err.stdout) console.log(err.stdout)
-    if (err.stderr) console.error(err.stderr)
   }
 }
 
@@ -594,54 +743,102 @@ ipcMain.handle('generate-story-text', async (event, data) => {
 })
 
 // STAGE 2: Audio, Images, Video
+// --- IPC HANDLER: GENERATE AUDIO ONLY (UPDATED) ---
+
+// Мапа мов для Whisper (Додай це перед функцією або на початку файлу)
+const LANGUAGE_CODES = {
+  English: 'en',
+  Ukrainian: 'uk',
+  German: 'de',
+  Spanish: 'es',
+  French: 'fr'
+  // Можеш додати інші мови, якщо вони є в твоєму select
+}
+
 ipcMain.handle('generate-audio-only', async (event, data) => {
-  const { text, voice, ttsProvider, folderPath, imagePrompt, imageCount } = data
+  // Деструктуризація з новими полями: visualMode, bgVideoPath, language
+  const {
+    text,
+    voice,
+    ttsProvider,
+    folderPath,
+    imagePrompt,
+    imageCount,
+    visualMode,
+    bgVideoPath,
+    language,
+    makeSubtitles
+  } = data
 
   try {
+    // Зберігаємо фінальний текст скрипта
     await fs.writeFile(join(folderPath, 'final_script_for_audio.txt'), text)
 
-    // --- КРОК 1: ГЕНЕРАЦІЯ КАРТИНОК ---
-    const imagesDir = join(folderPath, 'images')
-    await fs.ensureDir(imagesDir)
+    // ==========================================
+    // КРОК 1: ВІЗУАЛЬНИЙ КОНТЕНТ (КАРТИНКИ АБО ВІДЕО)
+    // ==========================================
 
-    let countToGen = parseInt(imageCount)
-    if (isNaN(countToGen) || countToGen < 1) countToGen = 1
+    if (visualMode === 'video') {
+      // --- РЕЖИМ ВІДЕО ---
+      sendLog('🎬 Video Mode Selected. Skipping image generation.')
 
-    const finalImagePrompt = imagePrompt || 'Atmospheric cinematic background, 8k, detailed'
-
-    sendLog(
-      `🎨 Starting Image Generation: Count=${countToGen}, Prompt="${finalImagePrompt.substring(0, 20)}..."`
-    )
-
-    const imgProvider = store.get('imageProvider') || 'free'
-    const imgToken = store.get('elevenLabsImgKey')
-
-    for (let i = 1; i <= countToGen; i++) {
-      const imgName = `scene_${i}.jpg`
-      const imgPath = join(imagesDir, imgName)
-
-      sendLog(`🎨 Generating Image ${i}/${countToGen}...`)
-
-      try {
-        if (imgProvider === 'eleven') {
-          await generateElevenLabsImage(finalImagePrompt, imgToken, imgPath)
-        } else {
-          await downloadPollinationsImage(finalImagePrompt, imgPath)
-        }
-        sendLog(`✅ Image ${i} saved.`)
-      } catch (e) {
-        console.error(`Failed to generate image ${i}:`, e)
-        sendLog(`⚠️ Image ${i} failed. Skipping.`)
+      if (!bgVideoPath) {
+        throw new Error('Background video file not selected!')
       }
-      await sleep(1000)
+      if (!fs.existsSync(bgVideoPath)) {
+        throw new Error(`Video file not found at: ${bgVideoPath}`)
+      }
+
+      // Копіюємо відео у папку проєкту як "source_bg.mp4"
+      const destVideoPath = join(folderPath, 'source_bg.mp4')
+      sendLog(`📂 Copying background video to project folder...`)
+      await fs.copy(bgVideoPath, destVideoPath)
+    } else {
+      // --- РЕЖИМ КАРТИНОК (Стара логіка) ---
+      const imagesDir = join(folderPath, 'images')
+      await fs.ensureDir(imagesDir)
+
+      let countToGen = parseInt(imageCount)
+      if (isNaN(countToGen) || countToGen < 1) countToGen = 1
+
+      const finalImagePrompt = imagePrompt || 'Atmospheric cinematic background, 8k, detailed'
+
+      sendLog(`🎨 Starting Image Generation: Count=${countToGen}...`)
+
+      const imgProvider = store.get('imageProvider') || 'free'
+      const imgToken = store.get('elevenLabsImgKey')
+
+      for (let i = 1; i <= countToGen; i++) {
+        const imgName = `scene_${i}.jpg`
+        const imgPath = join(imagesDir, imgName)
+
+        sendLog(`🎨 Generating Image ${i}/${countToGen}...`)
+
+        try {
+          if (imgProvider === 'eleven') {
+            await generateElevenLabsImage(finalImagePrompt, imgToken, imgPath)
+          } else {
+            await downloadPollinationsImage(finalImagePrompt, imgPath)
+          }
+          sendLog(`✅ Image ${i} saved.`)
+        } catch (e) {
+          console.error(`Failed to generate image ${i}:`, e)
+          sendLog(`⚠️ Image ${i} failed. Skipping.`)
+        }
+        await sleep(1000) // Пауза між запитами
+      }
+
+      // Перевірка, чи створились картинки
+      const files = await fs.readdir(imagesDir)
+      if (files.filter((f) => f.endsWith('.jpg')).length === 0) {
+        sendLog('⚠️ WARNING: No images generated! Creating a dummy image...')
+        // Тут можна додати логіку створення заглушки, якщо треба
+      }
     }
 
-    const files = await fs.readdir(imagesDir)
-    if (files.filter((f) => f.endsWith('.jpg')).length === 0) {
-      sendLog('⚠️ WARNING: No images generated! Creating a dummy image...')
-    }
-
-    // --- КРОК 2: ГЕНЕРАЦІЯ АУДІО ---
+    // ==========================================
+    // КРОК 2: ГЕНЕРАЦІЯ АУДІО
+    // ==========================================
     const audioPath = join(folderPath, 'audio.mp3')
 
     if (ttsProvider === 'genai') {
@@ -649,12 +846,11 @@ ipcMain.handle('generate-audio-only', async (event, data) => {
       if (!gToken) throw new Error('GenAI Token missing!')
       await generateGenAiAudio(text, voice, gToken, audioPath)
     } else if (ttsProvider === '11labs') {
-      // NEW BLOCK
-      const eToken = store.get('elevenAudioKey') // Make sure to save this key in settings.js logic
+      const eToken = store.get('elevenAudioKey')
       if (!eToken) throw new Error('11 Labs Audio Key is missing!')
       await generate11LabsAudio(text, voice, eToken, audioPath)
     } else {
-      // Edge TTS logic...
+      // Edge TTS
       sendLog('🎙️ Generating Edge TTS Audio...')
       const cleanText = text.replace(/["`]/g, '').replace(/\n/g, ' ')
       const tempPath = join(folderPath, 'temp_tts.txt')
@@ -666,8 +862,34 @@ ipcMain.handle('generate-audio-only', async (event, data) => {
       await execPromise(command)
     }
 
-    // --- КРОК 3: ВІДЕО ---
-    await createVideoFromProject(folderPath)
+    // ==========================================
+    // КРОК 3: СУБТИТРИ (WHISPER)
+    // ==========================================
+    const srtPath = join(folderPath, 'subtitles.srt')
+
+    // Check the checkbox value
+    if (makeSubtitles === true) {
+      sendLog('📝 Generating Subtitles with Whisper (Local)...')
+      const whisperLangCode = LANGUAGE_CODES[language] || 'auto'
+
+      const srtGenerated = await generateSrtWithWhisper(audioPath, srtPath, whisperLangCode)
+
+      if (srtGenerated) {
+        // Only add effects if SRT was actually created
+        await addFadeEffectToSrt(srtPath)
+      }
+    } else {
+      sendLog('⏭️ Skipping Subtitles (User unchecked).')
+      if (fs.existsSync(srtPath)) {
+        await fs.unlink(srtPath)
+      }
+    }
+
+    // ==========================================
+    // КРОК 4: РЕНДЕР ВІДЕО
+    // ==========================================
+    // Передаємо visualMode, щоб функція знала, що рендерити (луп чи слайдшоу)
+    await createVideoFromProject(folderPath, visualMode)
 
     sendLog('✅ All processes completed!')
     shell.openPath(folderPath)

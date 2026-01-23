@@ -469,6 +469,27 @@ async function createVideoFromProject(folderPath, visualMode = 'images') {
     let ffmpegCmd = store.get('customFfmpegPath') || 'ffmpeg'
     ffmpegCmd = ffmpegCmd.replace(/"/g, '')
 
+    const subSettings = store.get('subtitleSettings') || {
+      font: 'Merriweather Light',
+      size: 24,
+      primary: '#FFFFFF',
+      outline: '#000000',
+      borderStyle: '1',
+      alignment: '2',
+      italic: true,
+      outlineWidth: 0
+    }
+    const fontName = subSettings.font
+    const fontSize = subSettings.size
+    const outlineWidth = subSettings.outlineWidth || 0
+    const assPrimary = hexToAssColor(subSettings.primary)
+    const assOutline = hexToAssColor(subSettings.outline)
+    const borderStyle = subSettings.borderStyle
+    const alignment = subSettings.alignment
+    const italic = subSettings.italic ? '1' : '0'
+
+    const styleASS = `Fontname=${fontName},Italic=${italic},Fontsize=${fontSize},PrimaryColour=${assPrimary},OutlineColour=${assOutline},BorderStyle=${borderStyle},Outline=${outlineWidth},Shadow=0.5,MarginV=25,Alignment=${alignment}`
+
     // 1. Get Audio Duration
     sendLog('🎬 Analyzing audio length...')
     const audioDuration = await getAudioDuration(audioPath, ffmpegCmd)
@@ -479,7 +500,7 @@ async function createVideoFromProject(folderPath, visualMode = 'images') {
     if (fs.existsSync(srtPath)) {
       // Використовуємо :charenc=UTF-8 щоб уникнути крякозябрів
       // Відносний шлях srtName працює краще з execOptions.cwd
-      subtitlesFilter = `,subtitles='${srtName}':charenc=UTF-8:force_style='Fontname=Merriweather Light,Fontsize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=0,Outline=0.5,Shadow=0.5,MarginV=25,Alignment=2'`
+      subtitlesFilter = `,subtitles='${srtName}':charenc=UTF-8:force_style='${styleASS}'`
     }
 
     const execOptions = { cwd: folderPath }
@@ -498,8 +519,7 @@ async function createVideoFromProject(folderPath, visualMode = 'images') {
 
       // -stream_loop -1: Нескінченний повтор відео
       // -shortest: Обрізати по найкоротшому (по аудіо)
-      const command = `"${ffmpegCmd}" -y -stream_loop -1 -i "${bgVideo}" -i "${audioName}" -vf "${filter}" -map 0:v -map 1:a -c:v libx264 -preset fast -c:a aac -b:a 192k -shortest "${videoName}"`
-
+      const command = `"${ffmpegCmd}" -y -stream_loop -1 -i "${bgVideo}" -i "${audioName}" -vf "${filter}" -map 0:v -map 1:a -c:v libx264 -preset medium -crf 18 -c:a aac -b:a 192k -shortest "${videoName}"`
       await execPromise(command, execOptions)
     }
     // ============================
@@ -518,31 +538,28 @@ async function createVideoFromProject(folderPath, visualMode = 'images') {
 
       sendLog(`🎬 Found ${uniqueImages.length} images for video.`)
 
-      // Налаштування стилю шрифту (Merriweather Light Italic)
-      const style =
-        'Fontname=Merriweather Light,Italic=1,Fontsize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0.5,MarginV=25,Alignment=2'
+      // ❌ ВИДАЛЕНО: const style = 'Fontname=...' (бо ми вже маємо styleASS зверху)
 
       if (uniqueImages.length === 1) {
         // Одне фото
         const relImgPath = `images/${uniqueImages[0]}`
 
-        // Формуємо простий фільтр
         let filter = 'format=yuv420p'
         if (fs.existsSync(srtPath)) {
-          filter += `,subtitles='${srtName}':charenc=UTF-8:force_style='${style}'`
+          // ✅ ВИПРАВЛЕНО: замість style ставимо styleASS
+          filter += `,subtitles='${srtName}':charenc=UTF-8:force_style='${styleASS}'`
         }
 
-        const command = `"${ffmpegCmd}" -y -loop 1 -i "${relImgPath}" -i "${audioName}" -vf "${filter}" -c:v libx264 -tune stillimage -c:a aac -b:a 192k -shortest "${videoName}"`
+        const command = `"${ffmpegCmd}" -y -loop 1 -i "${relImgPath}" -i "${audioName}" -vf "${filter}" -c:v libx264 -preset medium -crf 18 -tune stillimage -c:a aac -b:a 192k -shortest "${videoName}"`
         await execPromise(command, execOptions)
       } else {
-        // Слайд-шоу (Багато фото)
+        // Слайд-шоу
         const slideDuration = 20
         const fadeDuration = 1
         const effectiveSlideTime = slideDuration - fadeDuration
         const totalSlidesNeeded = Math.ceil(audioDuration / effectiveSlideTime) + 1
 
         let inputFilesList = []
-        // Дублюємо картинки, щоб вистачило на всю довжину аудіо
         for (let i = 0; i < totalSlidesNeeded; i++) {
           const imgIndex = i % uniqueImages.length
           inputFilesList.push(`images/${uniqueImages[imgIndex]}`)
@@ -557,7 +574,6 @@ async function createVideoFromProject(folderPath, visualMode = 'images') {
         let lastLabel = '[0:v]'
         let offset = slideDuration - fadeDuration
 
-        // Генеруємо ланцюжок переходів (xfade)
         for (let i = 1; i < inputFilesList.length; i++) {
           const nextLabel = `[${i}:v]`
           const outLabel = `[v${i}]`
@@ -566,21 +582,14 @@ async function createVideoFromProject(folderPath, visualMode = 'images') {
           offset += slideDuration - fadeDuration
         }
 
-        // --- ФІНАЛЬНА ЗБІРКА ---
-        // 1. Беремо останній шматок відео (lastLabel)
-        // 2. Конвертуємо формат пікселів (format=yuv420p) -> зберігаємо в [v_pre]
-        // 3. Накладаємо субтитри на [v_pre] -> зберігаємо в [v]
-
         if (fs.existsSync(srtPath)) {
-          // Якщо субтитри Є -> накладаємо їх
-          filter += `${lastLabel}format=yuv420p[v_pre];[v_pre]subtitles='${srtName}':charenc=UTF-8:force_style='${style}'[v]`
+          // ✅ ВИПРАВЛЕНО: замість style ставимо styleASS
+          filter += `${lastLabel}format=yuv420p[v_pre];[v_pre]subtitles='${srtName}':charenc=UTF-8:force_style='${styleASS}'[v]`
         } else {
-          // Якщо субтитрів НЕМАЄ -> просто закриваємо ланцюжок відео
           filter += `${lastLabel}format=yuv420p[v]`
         }
 
-        const command = `"${ffmpegCmd}" -y ${inputs} -i "${audioName}" -filter_complex "${filter}" -map "[v]" -map ${inputFilesList.length}:a -c:v libx264 -c:a aac -shortest "${videoName}"`
-
+        const command = `"${ffmpegCmd}" -y ${inputs} -i "${audioName}" -filter_complex "${filter}" -map "[v]" -map ${inputFilesList.length}:a -c:v libx264 -preset medium -crf 18 -c:a aac -b:a 192k -shortest "${videoName}"`
         await execPromise(command, execOptions)
       }
     }
@@ -899,3 +908,11 @@ ipcMain.handle('generate-audio-only', async (event, data) => {
     return { success: false, error: error.message }
   }
 })
+function hexToAssColor(hex) {
+  if (!hex) return '&H00FFFFFF'
+  const clean = hex.replace('#', '')
+  const r = clean.substring(0, 2)
+  const g = clean.substring(2, 4)
+  const b = clean.substring(4, 6)
+  return `&H00${b}${g}${r}`.toUpperCase()
+}

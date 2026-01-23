@@ -572,7 +572,7 @@ button {
 }
 
 .panel-body {
-  padding: 0;
+  padding: 20px;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -740,6 +740,49 @@ button {
 }
 .overlay.hidden {
   display: none;
+}
+.inp-color {
+  -webkit-appearance: none; /* Removes default browser styling */
+  border: none;
+  width: 45px;
+  height: 30px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: transform 0.2s ease;
+}
+
+/* Removes the inner padding that Chrome/Electron adds by default */
+.inp-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+/* Styles the actual colored rectangle */
+.inp-color::-webkit-color-swatch {
+  border: 1px solid #444; /* Subtle border for dark theme */
+  border-radius: 6px; /* Rounded corners */
+}
+
+/* Hover effect */
+.inp-color:hover {
+  transform: scale(1.05); /* Slight zoom on hover */
+}
+
+.inp-color:hover::-webkit-color-swatch {
+  border-color: #777; /* Lighter border on hover */
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+}
+
+/* Focus state (when clicked/tabbed) */
+.inp-color:focus {
+  outline: none;
+}
+.inp-color-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
 }
 /* #endregion */
 

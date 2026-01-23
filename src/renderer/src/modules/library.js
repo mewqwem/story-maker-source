@@ -39,8 +39,50 @@ export async function initLibrary() {
   // 2. Load Favorites
   favoriteVoices = (await window.api.getSetting('favoriteVoices')) || []
   renderFavoritesList()
+  await initSubtitleSettings()
 }
+async function initSubtitleSettings() {
+  // 1. Завантажуємо збережені налаштування (або дефолтні)
+  const defaults = {
+    font: 'Merriweather Light',
+    size: 24,
+    outlineWidth: 1,
+    primary: '#FFFFFF',
+    outline: '#000000',
+    borderStyle: '1',
+    alignment: '2',
+    italic: true
+  }
 
+  const saved = (await window.api.getSetting('subtitleSettings')) || defaults
+
+  // 2. Заповнюємо інпути
+  document.getElementById('libSubFont').value = saved.font
+  document.getElementById('libSubSize').value = saved.size
+  document.getElementById('libSubOutlineWidth').value = saved.outlineWidth || 0
+  document.getElementById('libSubColorPrimary').value = saved.primary
+  document.getElementById('libSubColorOutline').value = saved.outline
+  document.getElementById('libSubBorderStyle').value = saved.borderStyle
+  document.getElementById('libSubAlignment').value = saved.alignment
+  document.getElementById('libSubItalic').checked = saved.italic
+
+  // 3. Обробник кнопки збереження
+  document.getElementById('btnSaveSubSettings').addEventListener('click', async () => {
+    const newSettings = {
+      font: document.getElementById('libSubFont').value,
+      size: document.getElementById('libSubSize').value,
+      outlineWidth: document.getElementById('libSubOutlineWidth').value,
+      primary: document.getElementById('libSubColorPrimary').value,
+      outline: document.getElementById('libSubColorOutline').value,
+      borderStyle: document.getElementById('libSubBorderStyle').value,
+      alignment: document.getElementById('libSubAlignment').value,
+      italic: document.getElementById('libSubItalic').checked
+    }
+
+    await window.api.saveSetting('subtitleSettings', newSettings)
+    showToast('Subtitle settings saved!', 'success')
+  })
+}
 // --- CORE: LOAD & SAVE MASTER FILE ---
 
 async function loadMasterLibrary(path) {

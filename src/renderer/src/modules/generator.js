@@ -26,7 +26,9 @@ const EDGE_VOICES = [
   { name: 'Conrad (DE)', value: 'de-DE-ConradNeural' },
   { name: 'Katja (DE)', value: 'de-DE-KatjaNeural' },
   { name: 'Alvaro (ES)', value: 'es-ES-AlvaroNeural' },
-  { name: 'Elvira (ES)', value: 'es-ES-ElviraNeural' }
+  { name: 'Elvira (ES)', value: 'es-ES-ElviraNeural' },
+  { name: 'Eloise (FR)', value: 'fr-FR-EloiseNeural' },
+  { name: 'Henri (FR)', value: 'fr-FR-HenriNeural' }
 ]
 
 // --- STATE ---

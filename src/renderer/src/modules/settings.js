@@ -29,13 +29,13 @@ async function loadSettingsData() {
   await fill('apiKey', 'apiKeyInput')
   await fill('genAiKey', 'genAiKeyInput')
   await fill('elevenLabsImgKey', 'elevenLabsImgKeyInput')
-  await fill('elevenAudioKey', 'elevenLabsAudioKeyInput') // <--- NEW: Завантажуємо ключ аудіо
-
+  await fill('elevenAudioKey', 'elevenLabsAudioKeyInput')
   await fill('outputDir', 'outputFolderDisplay')
   await fill('customFfmpegPath', 'ffmpegPathDisplay')
   await fill('promptPath', 'promptFileDisplay')
   await fill('seoPromptPath', 'seoPromptFileDisplay')
   await fill('edgeTtsPath', 'edgeTtsPathInput')
+  await fill('whisperBinPath', 'whisperBinPathDisplay')
 
   // 2. AI Engine State Loading
 
@@ -177,6 +177,7 @@ function setupPathSelectors() {
   bindSelect('btnSelectFFmpeg', 'ffmpegPathDisplay', 'customFfmpegPath', 'file')
   bindSelect('btnSelectJson', 'promptFileDisplay', 'promptPath', 'file', ['json'])
   bindSelect('btnSelectSeoJson', 'seoPromptFileDisplay', 'seoPromptPath', 'file', ['json'])
+  bindSelect('btnSelectWhisperBin', 'whisperBinPathDisplay', 'whisperBinPath', 'folder')
 }
 
 // Helper to visually set the active toggle button

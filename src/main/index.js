@@ -178,14 +178,35 @@ async function generateSrtWithWhisper(audioPath, srtPath, languageCode = 'auto')
   try {
     const isDev = !app.isPackaged
 
-    // Шляхи до папки bin (локальний whisper.exe)
-    const binPath = isDev ? join(__dirname, '../../bin') : join(process.resourcesPath, 'bin')
+    // 1. Визначаємо стандартний шлях (fallback)
+    const defaultBinPath = isDev ? join(__dirname, '../../bin') : join(process.resourcesPath, 'bin')
+
+    // 2. Отримуємо шлях з налаштувань (якщо користувач його вибрав)
+    const customBinPath = store.get('whisperBinPath')
+
+    let binPath = defaultBinPath
+
+    // 3. Перевірка: чи існує кастомний шлях і чи є в ньому потрібні файли
+    if (customBinPath && typeof customBinPath === 'string') {
+      const customExe = join(customBinPath, 'whisper.exe')
+      const customModel = join(customBinPath, 'ggml-base.bin') // Перевіряємо також наявність моделі
+
+      if (fs.existsSync(customExe) && fs.existsSync(customModel)) {
+        binPath = customBinPath
+        sendLog(`ℹ️ Using Custom Whisper Path: ${binPath}`)
+      } else {
+        sendLog(`⚠️ Custom path invalid or missing files. Reverting to default: ${defaultBinPath}`)
+      }
+    } else {
+      sendLog(`ℹ️ Using Default Whisper Path: ${binPath}`)
+    }
 
     const whisperExe = join(binPath, 'whisper.exe')
-    const modelPath = join(binPath, 'ggml-base.bin') // Або ggml-small.bin
+    const modelPath = join(binPath, 'ggml-base.bin') // Або ggml-small.bin, залежно від того, що у вас лежить
 
-    if (!fs.existsSync(whisperExe)) throw new Error(`Whisper exe missing: ${whisperExe}`)
-    if (!fs.existsSync(modelPath)) throw new Error(`Model missing: ${modelPath}`)
+    // Фінальна перевірка перед запуском
+    if (!fs.existsSync(whisperExe)) throw new Error(`Whisper exe missing at: ${whisperExe}`)
+    if (!fs.existsSync(modelPath)) throw new Error(`Model missing at: ${modelPath}`)
 
     // Підготовка аудіо (Конвертація в 16kHz WAV без метаданих)
     const workDir = dirname(audioPath)
@@ -202,9 +223,10 @@ async function generateSrtWithWhisper(audioPath, srtPath, languageCode = 'auto')
     // Запуск Whisper
     const outputBase = 'subtitles'
 
-    const runCmd = `"${whisperExe}" -m "${modelPath}" -f "${tempWavName}" -osrt -of "${outputBase}" -l ${languageCode} --max-len 60`
+    // Тут ми використовуємо знайдені шляхи
+    const runCmd = `"${whisperExe}" -m "${modelPath}" -f "${tempWavName}" -osrt -of "${outputBase}" -l ${languageCode} --max-len 40`
 
-    sendLog('🎙️ Running Whisper AI (Max-len 80)...')
+    sendLog('🎙️ Running Whisper AI (Max-len 60)...')
     await execPromise(runCmd, { cwd: workDir })
 
     // Чистка і перевірка
@@ -216,7 +238,7 @@ async function generateSrtWithWhisper(audioPath, srtPath, languageCode = 'auto')
       sendLog('✅ SRT generated successfully.')
       return true
     } else {
-      // Check fallback name
+      // Check fallback name (іноді віспер називає файл як аудіофайл + .srt)
       const weirdFile = join(workDir, tempWavName + '.srt')
       if (fs.existsSync(weirdFile)) {
         await fs.move(weirdFile, srtPath, { overwrite: true })

@@ -742,7 +742,6 @@ button {
   display: none;
 }
 .inp-color {
-  -webkit-appearance: none; /* Removes default browser styling */
   border: none;
   width: 45px;
   height: 30px;

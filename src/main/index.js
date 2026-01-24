@@ -634,7 +634,8 @@ ipcMain.handle('generate-story-text', async (event, data) => {
     language,
     outputFolder,
     modelName,
-    targetLength
+    targetLength,
+    onePartStory
   } = data
 
   try {
@@ -662,24 +663,37 @@ ipcMain.handle('generate-story-text', async (event, data) => {
     await fs.ensureDir(finalPath)
 
     sendLog('✍️ Starting Story Generation...')
-
+    console.log('Raw targetLength:', targetLength)
     // 3. ПІДГОТОВКА ПРОМПТУ
-    // Замінюємо змінні в шаблоні
     let finalInitialPrompt = storyPrompt
       .replace(/{title}/gi, title)
-      .replace(/{language}/gi, language) // Це важливо, але іноді AI ігнорує
-      .replace(/{length}/gi, targetLength || 'medium')
+      .replace(/{language}/gi, language)
+      .replace(/{length}/gi, targetLength || '25000')
       .replace(/{projectName}/gi, projectName)
 
-    // 🔥 ПОКРАЩЕНІ ПРАВИЛА (Виправляємо проблему з мовою)
-    const systemRules = `
-      \n\nSYSTEM RULES (MUST FOLLOW):
-      1. Write the story in parts. Do NOT write the whole story at once.
-      2. At the end of a part, write exactly "CONTINUE" if not finished.
-      3. If the story is completely finished, write exactly "END".
-      4. ⚠️ CRITICAL: WRITE THE STORY ONLY IN THIS LANGUAGE: ${language}.
-      5. No markdown headers (like # Chapter 1).
-    `
+    // 🔥 ПОКРАЩЕНІ ПРАВИЛА (Вибір режиму)
+    let systemRules = ''
+
+    if (onePartStory) {
+      // === ПРАВИЛА ДЛЯ ОДНІЄЇ ЧАСТИНИ ===
+      systemRules = `
+        \n\nSYSTEM RULES (MUST FOLLOW):
+        1. Write the COMPLETE story in ONE SINGLE RESPONSE.
+        2. Write a full, finished story from start to end.
+        3. CRITICAL: WRITE ONLY IN THIS LANGUAGE: ${language}.
+        4. No markdown headers (like # Chapter 1).
+      `
+    } else {
+      // === СТАРІ ПРАВИЛА (ЧАСТИНАМИ) ===
+      systemRules = `
+        \n\nSYSTEM RULES (MUST FOLLOW):
+        1. Write the story in parts. Do NOT write the whole story at once.
+        2. At the end of a part, write exactly "CONTINUE" if not finished.
+        3. If the story is completely finished, write exactly "END".
+        4. CRITICAL: WRITE THE STORY ONLY IN THIS LANGUAGE: ${language}.
+        5. No markdown headers (like # Chapter 1).
+      `
+    }
 
     // Перше повідомлення
     let nextMessage = finalInitialPrompt + systemRules
@@ -690,42 +704,59 @@ ipcMain.handle('generate-story-text', async (event, data) => {
     let iteration = 0
 
     // 4. ЦИКЛ ГЕНЕРАЦІЇ
-    while (!isFinished && iteration < 30) {
+    while (!isFinished && iteration < 70) {
       iteration++
       sendLog(`✍️ Writing part ${iteration} (Lang: ${language})...`)
+
+      console.log(`\n🔵 === AI PROMPT (Iteration ${iteration}) ===`)
+      console.log(nextMessage) // Виводить повний текст промпту
+      console.log('===========================================\n')
 
       try {
         const result = await chat.sendMessage(nextMessage)
         const rawText = result.response.text()
 
-        // 🔥 ПОКРАЩЕНА ОЧИСТКА (Виправляємо "Type to receive...")
-        // Використовуємо регулярні вирази (Regex), щоб зловити будь-які варіації фрази
+        // 🔥 ОЧИСТКА ТЕКСТУ
         let cleanChunk = rawText
           .replace(/CONTINUE/gi, '')
           .replace(/END/gi, '')
-          .replace(/Type .*? to receive the next part\.?/gi, '') // Ловить "Type [що завгодно] to receive..."
-          .replace(/Type .*? to continue\.?/gi, '') // Ловить "Type 'Continue' to continue"
-          .replace(/\(Write .*?\)/gi, '') // Ловить інструкції в дужках, якщо AI їх виплюнув
-          .replace(/\*\*/g, '') // Жирний шрифт
-          .replace(/##/g, '') // Заголовки
+          .replace(/Type .*? to receive the next part\.?/gi, '')
+          .replace(/Type .*? to continue\.?/gi, '')
+          .replace(/\(Write .*?\)/gi, '')
+          .replace(/\*\*/g, '')
+          .replace(/##/g, '')
           .trim()
 
         if (cleanChunk) {
           fullStoryText += cleanChunk + '\n\n'
         }
 
-        // Логіка продовження
-        if (rawText.includes('END')) {
-          isFinished = true
-          sendLog('✅ Story finished by AI.')
+        // --- УМОВА ВИХОДУ ---
+        if (onePartStory) {
+          // Логіка для "One Part Story"
+          // Якщо AI не написав явно "CONTINUE", ми вважаємо, що він закінчив
+          if (!rawText.includes('CONTINUE')) {
+            isFinished = true
+            sendLog('✅ One-part story finished.')
+          }
         } else {
-          // Нагадуємо "continue", але можна ще раз нагадати про мову, якщо треба
+          // Стара логіка (Mult-part)
+          // Шукаємо слово "END"
+          if (rawText.includes('END')) {
+            isFinished = true
+            sendLog('✅ Story finished by AI.')
+          }
+        }
+
+        // --- ПІДГОТОВКА НАСТУПНОГО КРОКУ (ЯКЩО НЕ ЗАКІНЧИЛИ) ---
+        if (!isFinished) {
           nextMessage = `
-          Great. Now write the NEXT part of the story. 
-          - Move the plot forward. 
-          - Do NOT repeat scenes.
-          (Remember: do not write the end until the story is fully resolved)
-        `
+            Great. Now write the NEXT part of the story. 
+            - Move the plot forward. 
+            - Do NOT repeat scenes.
+            - Keep using language: ${language}.
+            (Remember: do not write the end until the story is fully resolved)
+          `
           await sleep(2000)
         }
       } catch (err) {
@@ -743,7 +774,6 @@ ipcMain.handle('generate-story-text', async (event, data) => {
     // 6. SEO
     sendLog('📝 Generating SEO...')
     try {
-      // Додаємо в SEO промпт явну вказівку мови
       const seoTemplate =
         seoPrompt ||
         `Based on the story above, write YouTube Title, Description, Hashtags. Language: ${language}.`

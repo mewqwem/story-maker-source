@@ -191,6 +191,7 @@ async function startProcess() {
   const targetLength = parseInt(document.getElementById('storyLength').value) || 25000
   const modelName = document.getElementById('modelSelect')?.value || 'gemini-2.0-flash'
   const language = document.getElementById('language').value
+  const onePartStory = document.getElementById('onePartStory').checked
 
   // Get Visual Settings (Check Mode)
   const visualMode = document.getElementById('visualMode').value
@@ -245,7 +246,8 @@ async function startProcess() {
     language,
     outputFolder,
     modelName,
-    targetLength
+    targetLength,
+    onePartStory
   }
 
   try {
@@ -260,6 +262,7 @@ async function startProcess() {
         imagePrompt: imagePrompt,
         imageCount: document.getElementById('totalImagesCount').value,
         makeSubtitles: document.getElementById('makeSubtitles').checked,
+        onePartStory: document.getElementById('onePartStory').checked,
         language: language, // Pass language to fix Whisper!
         visualMode: visualMode,
         bgVideoPath: bgVideoPath
@@ -303,6 +306,7 @@ async function confirmAudioGeneration() {
       imagePrompt: tempGenerationData.imagePrompt,
       imageCount: tempGenerationData.imageCount,
       makeSubtitles: tempGenerationData.makeSubtitles,
+      onePartStory: tempGenerationData.onePartStory,
       language: tempGenerationData.language,
       visualMode: tempGenerationData.visualMode,
       bgVideoPath: tempGenerationData.bgVideoPath

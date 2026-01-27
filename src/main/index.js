@@ -9,7 +9,7 @@ import Store from 'electron-store'
 import log from 'electron-log'
 import axios from 'axios'
 import { autoUpdater } from 'electron-updater'
-
+import { EdgeTTS } from 'node-edge-tts'
 // --- CONSTANTS & CONFIG ---
 const IMAGE_API_URL = 'https://voiceapi.csv666.ru/api/v1'
 const GENAI_API_URL = 'https://genaipro.vn/api/v1'
@@ -170,7 +170,24 @@ function formatTimeSRT(seconds) {
   const ms = date.getUTCMilliseconds().toString().padStart(3, '0')
   return `${hh}:${mm}:${ss},${ms}`
 }
+function splitTextSafe(text, maxLength = 2500) {
+  // Розбиваємо по реченнях (шукаємо крапку, знак оклику/питання або новий рядок)
+  const sentences = text.match(/[^.!?\n]+[.!?\n]+/g) || [text]
+  const chunks = []
+  let currentChunk = ''
 
+  for (const sentence of sentences) {
+    if ((currentChunk + sentence).length > maxLength) {
+      chunks.push(currentChunk)
+      currentChunk = sentence
+    } else {
+      currentChunk += sentence
+    }
+  }
+  if (currentChunk) chunks.push(currentChunk)
+
+  return chunks
+}
 // Функція генерації SRT файлу через Whisper
 async function generateSrtWithWhisper(audioPath, srtPath, languageCode = 'auto') {
   sendLog(`🎙️ Whisper: Initializing (Lang: ${languageCode})...`)
@@ -178,34 +195,38 @@ async function generateSrtWithWhisper(audioPath, srtPath, languageCode = 'auto')
   try {
     const isDev = !app.isPackaged
 
-    // 1. Визначаємо стандартний шлях (fallback)
+    // Визначаємо назву файлу залежно від ОС
+    // Якщо Windows -> whisper.exe, якщо Mac/Linux -> whisper
+    const executableName = process.platform === 'win32' ? 'whisper.exe' : 'whisper'
+
+    // 1. Стандартний шлях
     const defaultBinPath = isDev ? join(__dirname, '../../bin') : join(process.resourcesPath, 'bin')
 
-    // 2. Отримуємо шлях з налаштувань (якщо користувач його вибрав)
+    // 2. Кастомний шлях (з налаштувань)
     const customBinPath = store.get('whisperBinPath')
 
     let binPath = defaultBinPath
 
-    // 3. Перевірка: чи існує кастомний шлях і чи є в ньому потрібні файли
+    // 3. Перевірка кастомного шляху
     if (customBinPath && typeof customBinPath === 'string') {
-      const customExe = join(customBinPath, 'whisper.exe')
-      const customModel = join(customBinPath, 'ggml-base.bin') // Перевіряємо також наявність моделі
+      const customExe = join(customBinPath, executableName)
+      const customModel = join(customBinPath, 'ggml-base.bin')
 
       if (fs.existsSync(customExe) && fs.existsSync(customModel)) {
         binPath = customBinPath
         sendLog(`ℹ️ Using Custom Whisper Path: ${binPath}`)
       } else {
-        sendLog(`⚠️ Custom path invalid or missing files. Reverting to default: ${defaultBinPath}`)
+        sendLog(`⚠️ Custom path invalid. Reverting to default: ${defaultBinPath}`)
       }
     } else {
       sendLog(`ℹ️ Using Default Whisper Path: ${binPath}`)
     }
 
-    const whisperExe = join(binPath, 'whisper.exe')
-    const modelPath = join(binPath, 'ggml-base.bin') // Або ggml-small.bin, залежно від того, що у вас лежить
+    const whisperExe = join(binPath, executableName)
+    const modelPath = join(binPath, 'ggml-base.bin')
 
-    // Фінальна перевірка перед запуском
-    if (!fs.existsSync(whisperExe)) throw new Error(`Whisper exe missing at: ${whisperExe}`)
+    // Фінальна перевірка
+    if (!fs.existsSync(whisperExe)) throw new Error(`Whisper executable missing at: ${whisperExe}`)
     if (!fs.existsSync(modelPath)) throw new Error(`Model missing at: ${modelPath}`)
 
     // Підготовка аудіо (Конвертація в 16kHz WAV без метаданих)
@@ -911,16 +932,52 @@ ipcMain.handle('generate-audio-only', async (event, data) => {
       if (!eToken) throw new Error('11 Labs Audio Key is missing!')
       await generate11LabsAudio(text, voice, eToken, audioPath)
     } else {
-      // Edge TTS
-      sendLog('🎙️ Generating Edge TTS Audio...')
-      const cleanText = text.replace(/["`]/g, '').replace(/\n/g, ' ')
-      const tempPath = join(folderPath, 'temp_tts.txt')
-      await fs.writeFile(tempPath, cleanText, 'utf8')
+      // --- NODE-EDGE-TTS (З підтримкою довгих текстів) ---
+      sendLog('🎙️ Generating Edge TTS Audio (Long Text Mode)...')
 
-      const edgePath = store.get('edgeTtsPath') || 'edge-tts'
-      const command = `"${edgePath}" --file "${tempPath}" --write-media "${audioPath}" --voice ${voice}`
+      try {
+        // 1. Налаштування
+        const tts = new EdgeTTS({
+          voice: voice,
+          lang: 'en-US',
+          outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
+          timeout: 60000 // 1 хвилина на кожен маленький шматок (цього достатньо)
+        })
 
-      await execPromise(command)
+        // 2. Розбиваємо текст на частини
+        const chunks = splitTextSafe(text, 2500)
+        const totalChunks = chunks.length
+        sendLog(`ℹ️ Text split into ${totalChunks} parts. Starting generation...`)
+
+        // 3. Очищаємо (або створюємо) фінальний файл
+        await fs.writeFile(audioPath, '') // Створюємо пустий файл
+
+        // 4. Цикл генерації
+        for (let i = 0; i < totalChunks; i++) {
+          const chunk = chunks[i]
+          const tempChunkPath = join(folderPath, `temp_part_${i}.mp3`)
+
+          sendLog(`🎙️ Processing part ${i + 1}/${totalChunks}...`)
+
+          // Генеруємо шматок у тимчасовий файл
+          await tts.ttsPromise(chunk, tempChunkPath)
+
+          // Читаємо згенерований шматок і дописуємо в кінець основного файлу
+          const chunkData = await fs.readFile(tempChunkPath)
+          await fs.appendFile(audioPath, chunkData)
+
+          // Видаляємо тимчасовий файл, щоб не смітити
+          await fs.unlink(tempChunkPath).catch(() => {})
+
+          // Маленька пауза, щоб не "душити" сервер Microsoft запитами
+          await sleep(500)
+        }
+
+        sendLog('✅ Full Edge TTS Audio generated successfully.')
+      } catch (e) {
+        console.error('NodeEdgeTTS Error:', e)
+        throw new Error(`Edge TTS failed at some part: ${e.message}`)
+      }
     }
 
     // ==========================================

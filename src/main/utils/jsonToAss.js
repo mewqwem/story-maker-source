@@ -21,30 +21,27 @@ function formatAssTime(seconds) {
 }
 
 /**
- * Конвертує JSON Whisper в ASS з плавною анімацією (\kf)
+ * Конвертує JSON Whisper в ASS (SMOOTH WORD FADE - без зсуву часу)
  */
 export async function convertWhisperJsonToAss(jsonPath, assPath, options = {}) {
   try {
-    // 1. НАЛАШТУВАННЯ СТИЛЮ
-    // Логіка караоке ASS: текст стоїть у SecondaryColour, а зафарбовується у PrimaryColour.
-    // Тому: Primary = Активний (Жовтий), Secondary = Пасивний (Білий)
-
     const style = {
       fontSize: options.fontSize || 60,
-      primaryColor: options.primaryColor || '&H0000FFFF', // ЖОВТИЙ (Колір, ЯКИМ зафарбовуємо)
-      secondaryColor: options.secondaryColor || '&H00FFFFFF', // БІЛИЙ (Колір тексту до того, як його сказали)
-      outlineColor: options.outlineColor || '&H00000000', // Чорна обводка
-      marginV: options.marginV || 150, // Відступ знизу
-      marginSide: options.marginSide || 400, // Відступи з боків (центрування)
-      maxChars: options.maxChars || 30 // Довжина рядка
+      activeColor: options.primaryColor || '&H0000FFFF', // Жовтий (Цільовий)
+      inactiveColor: options.secondaryColor || '&H00FFFFFF', // Білий/Сірий (Базовий)
+      outlineColor: options.outlineColor || '&H00000000',
+      marginV: options.marginV || 150,
+      marginSide: options.marginSide || 400,
+      maxChars: options.maxChars || 30
     }
+
+    const FADE_DURATION = 200 // 200мс на плавну зміну кольору слова
 
     const data = await fs.readJson(jsonPath)
 
     let rawSegments = data.segments || data.transcription
     if (!rawSegments) throw new Error('Invalid Whisper JSON: No segments found')
 
-    // 2. Очищення даних
     const words = rawSegments
       .map((s) => {
         let start = s.start
@@ -53,31 +50,28 @@ export async function convertWhisperJsonToAss(jsonPath, assPath, options = {}) {
           start = parseTime(s.timestamps.from)
           end = parseTime(s.timestamps.to)
         }
-        return {
-          text: s.text,
-          start: start,
-          end: end
-        }
+        return { text: s.text, start: start, end: end }
       })
       .filter((w) => w.text)
 
-    // 3. HEADER ASS
+    // ВАЖЛИВО: PrimaryColour в стилі ставимо як INACTIVE (Базовий).
+    // Текст з'явиться цим кольором.
     const header = `[Script Info]
-Title: Karaoke Story
+Title: Smooth Fade Story
 ScriptType: v4.00+
 PlayResX: 1920
 PlayResY: 1080
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Karaoke,Arial,${style.fontSize},${style.primaryColor},${style.secondaryColor},${style.outlineColor},&H00000000,-1,0,1,3,0,2,${style.marginSide},${style.marginSide},${style.marginV},1
+Style: Karaoke,Arial,${style.fontSize},${style.inactiveColor},${style.activeColor},${style.outlineColor},&H00000000,-1,0,1,3,0,2,${style.marginSide},${style.marginSide},${style.marginV},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `
     let events = []
 
-    // 4. ГРУПУВАННЯ ТА АНІМАЦІЯ
+    // ГРУПУВАННЯ
     let currentLine = []
     let currentLength = 0
     const MAX_LINE_CHARS = style.maxChars
@@ -85,24 +79,30 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     function flushLine() {
       if (currentLine.length === 0) return
 
+      // Час життя рядка - строго від початку першого слова до кінця останнього
+      // Додаємо мікро-відступи (0.1с), щоб слова не обрізалися
       const lineStart = currentLine[0].start
-      const lineEnd = currentLine[currentLine.length - 1].end
+      const lineEnd = currentLine[currentLine.length - 1].end + 0.1
 
       let assLine = ''
 
       currentLine.forEach((w) => {
-        const duration = w.end - w.start
-        const kDuration = Math.round(duration * 100)
+        // Розраховуємо, коли саме всередині рядка має початися анімація слова
+        // tStart = (Початок слова - Початок рядка)
+        let tStart = Math.round((w.start - lineStart) * 1000)
+        if (tStart < 0) tStart = 0
 
-        // ЗМІНА ТУТ: \\kf замість \\k
-        // \\kf робить плавну заливку зліва направо (sweep)
-        assLine += `{\\kf${kDuration}}${w.text}`
+        const tEnd = tStart + FADE_DURATION
+
+        // \t(t1, t2, \1c&HActiveColor&)
+        // Це означає: "Починаючи з t1 і до t2 плавно зміни колір на Активний"
+        // \1c - це код для зміни Primary Colour
+        assLine += `{\\t(${tStart},${tEnd},\\1c${style.activeColor})}${w.text}`
       })
 
-      // Додаємо \\fad(300,200) на початок рядка
-      // Це робить плавну появу (300мс) і зникнення (200мс) всього тексту
+      // \fad(150,150) - плавна поява і зникнення всього рядка
       events.push(
-        `Dialogue: 0,${formatAssTime(lineStart)},${formatAssTime(lineEnd)},Karaoke,,0,0,0,,{\\fad(300,200)}${assLine}`
+        `Dialogue: 0,${formatAssTime(lineStart)},${formatAssTime(lineEnd)},Karaoke,,0,0,0,,{\\fad(150,150)}${assLine}`
       )
 
       currentLine = []

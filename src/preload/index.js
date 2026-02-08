@@ -21,7 +21,6 @@ const api = {
   generateStoryText: (data) => ipcRenderer.invoke('generate-story-text', data),
   generateAudioOnly: (data) => ipcRenderer.invoke('generate-audio-only', data),
 
-  // Listeners (Main -> Renderer)
   onLogUpdate: (callback) => ipcRenderer.on('log-update', (_event, value) => callback(value)),
 
   // Utils
@@ -36,6 +35,5 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // Fallback for non-isolated context (not recommended but covers bases)
   window.api = api
 }

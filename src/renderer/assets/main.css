@@ -1052,3 +1052,144 @@ button {
   border-top: 1px solid var(--border);
 }
 /* #endregion */
+/* --- TERMINAL CONTAINER --- */
+.terminal-window {
+  background: #0d1117; /* GitHub Dark / VS Code background */
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  font-family: 'Fira Code', 'Consolas', monospace; /* Моноширинний шрифт - це база */
+  overflow: hidden;
+  margin-top: 20px;
+  border: 1px solid #30363d;
+  height: 300px; /* Висота вікна */
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- HEADER (MacOS Style) --- */
+.terminal-header {
+  background: #161b22;
+  padding: 10px 15px;
+  border-bottom: 1px solid #30363d;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.terminal-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.btn {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.btn.red {
+  background: #ff5f56;
+}
+.btn.yellow {
+  background: #ffbd2e;
+}
+.btn.green {
+  background: #27c93f;
+}
+
+.terminal-title {
+  color: #8b949e;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* --- BODY & LOGS --- */
+.terminal-body {
+  padding: 15px;
+  flex: 1;
+  overflow-y: auto; /* Скрол */
+  color: #c9d1d9;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Scrollbar styling */
+.terminal-body::-webkit-scrollbar {
+  width: 8px;
+}
+.terminal-body::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+.terminal-body::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 4px;
+}
+
+/* --- LOG TYPES (COLORS) --- */
+.log-line {
+  margin-bottom: 4px;
+  animation: fadeIn 0.3s ease-in-out;
+  display: block;
+  word-wrap: break-word;
+}
+
+/* Ефект появи */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Success (Green) */
+.log-success {
+  color: #2ea043; /* Neon Green */
+  font-weight: bold;
+}
+
+/* Error (Red) */
+.log-error {
+  color: #f85149; /* Bright Red */
+  border-left: 2px solid #f85149;
+  padding-left: 8px;
+  background: rgba(248, 81, 73, 0.1);
+}
+
+/* Info / Process (Blue/Cyan) */
+.log-info {
+  color: #58a6ff; /* VS Code Blue */
+}
+
+/* Warning (Yellow) */
+.log-warn {
+  color: #d29922;
+}
+
+/* Standard text */
+.text-muted {
+  color: #6e7681;
+}
+
+/* Блимаючий курсор */
+.cursor {
+  display: inline-block;
+  width: 8px;
+  height: 15px;
+  background: #58a6ff;
+  animation: blink 1s infinite;
+  vertical-align: middle;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}

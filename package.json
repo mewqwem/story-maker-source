@@ -34,7 +34,8 @@
     "electron-builder": "^25.1.8",
     "electron-vite": "^2.3.0",
     "prettier": "^3.4.2",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vite-plugin-html-inject": "^1.1.2"
   },
   "repository": {
     "type": "git",

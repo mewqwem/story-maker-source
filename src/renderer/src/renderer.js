@@ -8,6 +8,7 @@ import { initSettings } from './modules/settings.js'
 import { initLibrary } from './modules/library.js'
 import { initHistory } from './modules/history.js'
 import { initGenerator } from './modules/generator.js'
+import { initTerminal } from './modules/terminal.js'
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('Renderer initialized')
@@ -26,4 +27,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 5. Initialize Generator (Logic for creation flow)
   await initGenerator() // <--- Init Generator
+
+  initTerminal()
 })

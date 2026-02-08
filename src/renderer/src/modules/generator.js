@@ -30,6 +30,9 @@ const EDGE_VOICES = [
   { name: 'Eloise (FR)', value: 'fr-FR-EloiseNeural' },
   { name: 'Henri (FR)', value: 'fr-FR-HenriNeural' }
 ]
+const PIPER_VOICES = [
+  { name: 'Thorsten (DE) - High', value: 'de_DE-thorsten-high.onnx', lang: 'de' }
+]
 
 // --- STATE ---
 let tempGenerationData = null
@@ -152,17 +155,14 @@ export async function updateVoiceList() {
 
   if (provider === 'edge') {
     voicesToRender = EDGE_VOICES.filter((v) => v.value.startsWith(langCode))
+  } else if (provider === 'piper') {
+    voicesToRender = PIPER_VOICES.filter((v) => v.lang === langCode)
   } else {
     const favorites = getFavorites()
-
     const filteredFavs = favorites.filter((v) => {
       const isCorrectLang = v.language === langCode || v.language === 'all'
-
-      if (provider === '11labs') {
-        return isCorrectLang && v.service === '11labs'
-      } else {
-        return isCorrectLang && (v.service === 'genai' || !v.service)
-      }
+      if (provider === '11labs') return isCorrectLang && v.service === '11labs'
+      return isCorrectLang && (v.service === 'genai' || !v.service)
     })
 
     voicesToRender = filteredFavs.map((v) => ({
@@ -172,7 +172,6 @@ export async function updateVoiceList() {
   }
 
   voiceSelect.innerHTML = voicesToRender.length ? '' : '<option disabled>No voices found</option>'
-
   voicesToRender.forEach((v) => {
     const opt = document.createElement('option')
     opt.value = v.value

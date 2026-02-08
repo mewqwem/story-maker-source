@@ -198,6 +198,21 @@
             </button>
             <span id="status-line">Ready</span>
           </div>
+          <div class="terminal-window">
+            <div class="terminal-header">
+              <div class="terminal-buttons">
+                <span class="btn red"></span>
+                <span class="btn yellow"></span>
+                <span class="btn green"></span>
+              </div>
+              <div class="terminal-title">user@storymaker:~/project/build</div>
+            </div>
+            <div class="terminal-body" id="logs-container">
+              <div class="log-line text-muted">
+                Waiting for commands... <span class="cursor">_</span>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section id="page-library" class="view">
@@ -601,6 +616,7 @@
                     <button class="toggle-option active" data-value="edge">Edge TTS</button>
                     <button class="toggle-option" data-value="genai">GenAI</button>
                     <button class="toggle-option" data-value="11labs">11 Labs Audio</button>
+                    <button class="toggle-option" data-value="piper">Piper (Local)</button>
                   </div>
                   <input type="hidden" id="ttsProvider" value="edge" />
                 </div>

@@ -6,7 +6,6 @@
 import { showToast } from './ui.js'
 
 // --- STATE ---
-// Ми тримаємо дані в пам'яті окремо, але зберігаємо разом
 let libraryData = {
   stories: {},
   seo: {},
@@ -14,7 +13,7 @@ let libraryData = {
 }
 
 let favoriteVoices = []
-let currentLibraryPath = null // Шлях до єдиного файлу library.json
+let currentLibraryPath = null
 
 // Змінні для редагування
 let currentEditingKey = null
@@ -24,8 +23,8 @@ let currentImageEditingKey = null
 // --- INITIALIZATION ---
 export async function initLibrary() {
   setupLibraryTabs()
-  setupEditorActions() // Налаштування кнопок Save/Delete/New
-  setupSettingsActions() // Налаштування вибору файлу в Settings
+  setupEditorActions()
+  setupSettingsActions()
   setupFavoritesActions()
 
   // 1. Load Master Library Path from Settings
@@ -39,50 +38,70 @@ export async function initLibrary() {
   // 2. Load Favorites
   favoriteVoices = (await window.api.getSetting('favoriteVoices')) || []
   renderFavoritesList()
+
+  // 3. Init Subtitle Settings (New Logic)
   await initSubtitleSettings()
 }
+
+// === NEW SUBTITLE LOGIC ===
 async function initSubtitleSettings() {
-  // 1. Завантажуємо збережені налаштування (або дефолтні)
+  const btnSave = document.getElementById('btnSaveSubSettings')
+  if (!btnSave) return
+
+  // 1. Завантажуємо налаштування (або дефолтні)
   const defaults = {
-    font: 'Merriweather Light',
-    size: 24,
-    outlineWidth: 1,
-    primary: '#FFFFFF',
-    outline: '#000000',
-    borderStyle: '1',
-    alignment: '2',
+    activeColor: '#FFFF00',
+    inactiveColor: '#FFFFFF',
+    outlineColor: '#000000',
+    fontSize: 60,
+    marginSide: 400,
+    marginBottom: 150,
     italic: true
   }
 
-  const saved = (await window.api.getSetting('subtitleSettings')) || defaults
+  // ВИПРАВЛЕННЯ ТУТ: window.api.getSetting замість invoke
+  const saved = (await window.api.getSetting('subtitleSettings')) || {}
+  const settings = { ...defaults, ...saved }
 
   // 2. Заповнюємо інпути
-  document.getElementById('libSubFont').value = saved.font
-  document.getElementById('libSubSize').value = saved.size
-  document.getElementById('libSubOutlineWidth').value = saved.outlineWidth || 0
-  document.getElementById('libSubColorPrimary').value = saved.primary
-  document.getElementById('libSubColorOutline').value = saved.outline
-  document.getElementById('libSubBorderStyle').value = saved.borderStyle
-  document.getElementById('libSubAlignment').value = saved.alignment
-  document.getElementById('libSubItalic').checked = saved.italic
+  const setVal = (id, val) => {
+    const el = document.getElementById(id)
+    if (el) el.value = val
+  }
+  const setCheck = (id, val) => {
+    const el = document.getElementById(id)
+    if (el) el.checked = val
+  }
 
-  // 3. Обробник кнопки збереження
-  document.getElementById('btnSaveSubSettings').addEventListener('click', async () => {
+  setVal('libSubColorActive', settings.activeColor)
+  setVal('libSubColorInactive', settings.inactiveColor)
+  setVal('libSubColorOutline', settings.outlineColor)
+  setVal('libSubSize', settings.fontSize)
+  setVal('libSubMarginSide', settings.marginSide)
+  setVal('libSubMarginBottom', settings.marginBottom)
+  setCheck('libSubItalic', settings.italic)
+
+  // 3. Збереження
+  btnSave.onclick = async () => {
+    const getVal = (id) => document.getElementById(id)?.value
+    const getCheck = (id) => document.getElementById(id)?.checked
+
     const newSettings = {
-      font: document.getElementById('libSubFont').value,
-      size: document.getElementById('libSubSize').value,
-      outlineWidth: document.getElementById('libSubOutlineWidth').value,
-      primary: document.getElementById('libSubColorPrimary').value,
-      outline: document.getElementById('libSubColorOutline').value,
-      borderStyle: document.getElementById('libSubBorderStyle').value,
-      alignment: document.getElementById('libSubAlignment').value,
-      italic: document.getElementById('libSubItalic').checked
+      activeColor: getVal('libSubColorActive'),
+      inactiveColor: getVal('libSubColorInactive'),
+      outlineColor: getVal('libSubColorOutline'),
+      fontSize: parseInt(getVal('libSubSize')) || 60,
+      marginSide: parseInt(getVal('libSubMarginSide')) || 400,
+      marginBottom: parseInt(getVal('libSubMarginBottom')) || 150,
+      italic: getCheck('libSubItalic')
     }
 
+    // ВИПРАВЛЕННЯ ТУТ: window.api.saveSetting замість invoke
     await window.api.saveSetting('subtitleSettings', newSettings)
-    showToast('Subtitle settings saved!', 'success')
-  })
+    showToast('Subtitle style saved!', 'success')
+  }
 }
+
 // --- CORE: LOAD & SAVE MASTER FILE ---
 
 async function loadMasterLibrary(path) {
@@ -90,15 +109,10 @@ async function loadMasterLibrary(path) {
     const json = await window.api.readJson(path)
     if (json) {
       currentLibraryPath = path
-
-      // Розподіляємо дані (або створюємо пусті об'єкти, якщо їх немає)
       libraryData.stories = json.stories || {}
       libraryData.seo = json.seo || {}
       libraryData.images = json.images || {}
-
-      // Оновлюємо UI для всіх трьох категорій
       refreshAllLists()
-
       console.log('📚 Master Library Loaded:', path)
     }
   } catch (e) {
@@ -111,9 +125,7 @@ async function saveMasterLibrary() {
   if (!currentLibraryPath) return showToast('No library file selected in Settings!', 'error')
 
   try {
-    // Зберігаємо всю структуру цілком
     await window.api.writeJson(currentLibraryPath, libraryData)
-    // Перезавантажуємо UI про всяк випадок
     refreshAllLists()
     showToast('Library Saved', 'success')
   } catch (e) {
@@ -154,7 +166,6 @@ function refreshAllLists() {
 // --- SETUP FUNCTIONS ---
 
 function setupSettingsActions() {
-  // Кнопка вибору файлу в налаштуваннях
   const btn = document.getElementById('btnSelectMasterLibrary')
   if (btn) {
     btn.addEventListener('click', async () => {
@@ -180,11 +191,8 @@ function setupEditorActions() {
     const key = document.getElementById('editPromptKey').value.trim()
     const val = document.getElementById('editPromptText').value
     if (!key) return showToast('Key required', 'error')
-
-    // Якщо ключ змінився, видаляємо старий
     if (currentEditingKey && currentEditingKey !== key)
       delete libraryData.stories[currentEditingKey]
-
     libraryData.stories[key] = val
     currentEditingKey = key
     await saveMasterLibrary()
@@ -209,10 +217,8 @@ function setupEditorActions() {
     const key = document.getElementById('editSeoPromptKey').value.trim()
     const val = document.getElementById('editSeoPromptText').value
     if (!key) return showToast('Key required', 'error')
-
     if (currentSeoEditingKey && currentSeoEditingKey !== key)
       delete libraryData.seo[currentSeoEditingKey]
-
     libraryData.seo[key] = val
     currentSeoEditingKey = key
     await saveMasterLibrary()
@@ -237,10 +243,8 @@ function setupEditorActions() {
     const key = document.getElementById('editImagePromptKey').value.trim()
     const val = document.getElementById('editImagePromptText').value
     if (!key) return showToast('Key required', 'error')
-
     if (currentImageEditingKey && currentImageEditingKey !== key)
       delete libraryData.images[currentImageEditingKey]
-
     libraryData.images[key] = val
     currentImageEditingKey = key
     await saveMasterLibrary()
@@ -323,24 +327,21 @@ function renderGeneratorButtons(data, containerId, hiddenInputId) {
     container.appendChild(btn)
   })
 
-  // Auto-select first
   if (container.children.length > 0) {
     container.children[0].click()
   }
 }
 
-// --- FAVORITES (UNCHANGED) ---
+// --- FAVORITES ---
 function setupFavoritesActions() {
   document.getElementById('btnAddFavorite')?.addEventListener('click', async () => {
     const name = document.getElementById('favVoiceName').value.trim()
     const id = document.getElementById('favVoiceIdInput').value.trim()
     const lang = document.getElementById('favVoiceLang').value
-    // Get the selected service type
     const service = document.getElementById('favVoiceService').value
 
     if (!name || !id) return showToast('Info missing', 'error')
 
-    // Save with service tag
     favoriteVoices.push({ name, voice_id: id, language: lang, service: service })
 
     await window.api.saveSetting('favoriteVoices', favoriteVoices)
@@ -348,7 +349,6 @@ function setupFavoritesActions() {
     showToast('Favorite Added', 'success')
     window.dispatchEvent(new Event('favorites-updated'))
 
-    // Clear inputs
     document.getElementById('favVoiceName').value = ''
     document.getElementById('favVoiceIdInput').value = ''
   })
@@ -362,7 +362,6 @@ function renderFavoritesList() {
     : '<li style="color:#555;text-align:center;">No favorites</li>'
 
   favoriteVoices.forEach((v) => {
-    // Default to genai if service is undefined (legacy support)
     const srv = v.service === '11labs' ? '11LABS' : 'GENAI'
     const badgeColor = v.service === '11labs' ? '#a5f' : '#4af'
 

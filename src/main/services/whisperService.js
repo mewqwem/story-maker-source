@@ -1,20 +1,16 @@
-// src/main/services/whisperService.js
 import { join, dirname } from 'path'
 import fs from 'fs-extra'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { app } from 'electron'
 import Store from 'electron-store'
+import { convertWhisperJsonToAss } from '../utils/jsonToAss.js'
 
 const execPromise = promisify(exec)
 const store = new Store()
 
 /**
- * Генерує SRT субтитри використовуючи Whisper
- * @param {string} audioPath - Шлях до аудіо файлу
- * @param {string} srtPath - Куди зберегти SRT
- * @param {string} languageCode - Код мови (en, uk, etc.)
- * @param {function} logFn - Функція для логування в UI
+ * Генерує SRT/ASS субтитри використовуючи Whisper
  */
 export async function generateSrtWithWhisper(
   audioPath,
@@ -26,18 +22,13 @@ export async function generateSrtWithWhisper(
 
   try {
     const isDev = !app.isPackaged
-    // Визначаємо назву файлу залежно від ОС
     const executableName = process.platform === 'win32' ? 'whisper.exe' : 'whisper'
 
-    // 1. Стандартний шлях
+    // 1. Шляхи до Whisper
     const defaultBinPath = isDev ? join(__dirname, '../../bin') : join(process.resourcesPath, 'bin')
-
-    // 2. Кастомний шлях (з налаштувань)
     const customBinPath = store.get('whisperBinPath')
 
     let binPath = defaultBinPath
-
-    // 3. Перевірка кастомного шляху
     if (customBinPath && typeof customBinPath === 'string') {
       const customExe = join(customBinPath, executableName)
       const customModel = join(customBinPath, 'ggml-base.bin')
@@ -55,11 +46,10 @@ export async function generateSrtWithWhisper(
     const whisperExe = join(binPath, executableName)
     const modelPath = join(binPath, 'ggml-base.bin')
 
-    // Фінальна перевірка
     if (!fs.existsSync(whisperExe)) throw new Error(`Whisper executable missing at: ${whisperExe}`)
     if (!fs.existsSync(modelPath)) throw new Error(`Model missing at: ${modelPath}`)
 
-    // Підготовка аудіо (Конвертація в 16kHz WAV без метаданих)
+    // 2. Підготовка аудіо (16kHz WAV)
     const workDir = dirname(audioPath)
     const tempWavName = 'temp_clean.wav'
     const tempWavPath = join(workDir, tempWavName)
@@ -71,31 +61,38 @@ export async function generateSrtWithWhisper(
     const convertCmd = `"${ffmpegCmd}" -y -i "${audioPath}" -ar 16000 -ac 1 -c:a pcm_s16le -map_metadata -1 -fflags +bitexact "${tempWavPath}"`
     await execPromise(convertCmd)
 
-    // Запуск Whisper
-    const outputBase = 'subtitles' // Whisper сам додасть розширення
+    // 3. Запуск Whisper (JSON + SRT)
+    const outputBase = 'subtitles'
+    // -oj = JSON, -osrt = SRT (якщо підтримується, інакше просто JSON конвертуємо)
+    // Додаємо -l (мова) і --max-len (довжина рядка)
+    const runCmd = `"${whisperExe}" -m "${modelPath}" -f "${tempWavName}" -oj -of "${outputBase}" -l ${languageCode} -ml 1`
 
-    // Тут ми використовуємо знайдені шляхи
-    const runCmd = `"${whisperExe}" -m "${modelPath}" -f "${tempWavName}" -osrt -of "${outputBase}" -l ${languageCode} --max-len 40`
-
-    logFn('🎙️ Running Whisper AI (Max-len 60)...')
+    logFn('🎙️ Running Whisper AI (JSON mode)...')
     await execPromise(runCmd, { cwd: workDir })
 
-    // Чистка і перевірка
+    // Чистка
     fs.unlink(tempWavPath).catch(() => {})
-    const generatedFile = join(workDir, outputBase + '.srt')
 
-    if (fs.existsSync(generatedFile)) {
-      if (generatedFile !== srtPath) await fs.move(generatedFile, srtPath, { overwrite: true })
-      logFn('✅ SRT generated successfully.')
+    // 4. Конвертація в ASS (Караоке)
+    const jsonFile = join(workDir, outputBase + '.json')
+    const assFile = srtPath.replace('.srt', '.ass')
+
+    // Перевіряємо, чи створився JSON
+    if (fs.existsSync(jsonFile)) {
+      logFn('🎨 Converting JSON to Karaoke ASS...')
+      await convertWhisperJsonToAss(jsonFile, assFile)
+      logFn('✅ Karaoke Subtitles generated.')
       return true
     } else {
-      // Check fallback name
-      const weirdFile = join(workDir, tempWavName + '.srt')
-      if (fs.existsSync(weirdFile)) {
-        await fs.move(weirdFile, srtPath, { overwrite: true })
+      // Якщо JSON немає, шукаємо хоча б SRT (як фоллбек)
+      const generatedSrt = join(workDir, outputBase + '.srt')
+      if (fs.existsSync(generatedSrt)) {
+        if (generatedSrt !== srtPath) await fs.move(generatedSrt, srtPath, { overwrite: true })
+        logFn('⚠️ No JSON found, falling back to standard SRT.')
         return true
       }
-      console.warn('Whisper finished but no SRT file found (maybe silence).')
+
+      console.warn('Whisper finished but no JSON/SRT found.')
       return false
     }
   } catch (error) {
@@ -106,7 +103,7 @@ export async function generateSrtWithWhisper(
 }
 
 /**
- * Додає ефект появи (fade) до субтитрів
+ * Додає ефект появи (fade) до субтитрів (для звичайних SRT)
  */
 export async function addFadeEffectToSrt(srtPath) {
   try {

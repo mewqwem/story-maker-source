@@ -20,6 +20,9 @@ const api = {
   // Generation Logic
   generateStoryText: (data) => ipcRenderer.invoke('generate-story-text', data),
   generateAudioOnly: (data) => ipcRenderer.invoke('generate-audio-only', data),
+  generateAudioPart: (data) => ipcRenderer.invoke('generate-audio-part', data),
+  generateImagesPart: (data) => ipcRenderer.invoke('generate-images-part', data),
+  renderVideoPart: (data) => ipcRenderer.invoke('render-video-part', data),
 
   onLogUpdate: (callback) => ipcRenderer.on('log-update', (_event, value) => callback(value)),
 

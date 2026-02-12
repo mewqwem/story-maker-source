@@ -127,7 +127,7 @@ ipcMain.handle('write-json', async (e, fp, data) =>
 
 // --- IPC: GENERATION HANDLERS ---
 
-// 1. GENERATE STORY (GEMINI)
+// 1. GENERATE STORY TEXT (GEMINI)
 ipcMain.handle('generate-story-text', async (event, data) => {
   try {
     return await generateStoryWithGemini(data, sendLog)
@@ -137,57 +137,22 @@ ipcMain.handle('generate-story-text', async (event, data) => {
   }
 })
 
-// 2. GENERATE AUDIO & VIDEO
-ipcMain.handle('generate-audio-only', async (event, data) => {
-  const {
-    text,
-    voice,
-    ttsProvider,
-    folderPath,
-    imagePrompt,
-    imageCount,
-    visualMode,
-    bgVideoPath,
-    language,
-    makeSubtitles
-  } = data
+// ---------------------------------------------------------
+// NEW PARALLEL HANDLERS (REPLACED generate-audio-only)
+// ---------------------------------------------------------
+
+// PART A: AUDIO + SUBTITLES
+ipcMain.handle('generate-audio-part', async (event, data) => {
+  const { text, voice, ttsProvider, folderPath, language, makeSubtitles } = data
 
   try {
+    // 1. Save Text Script
     await fs.writeFile(join(folderPath, 'final_script_for_audio.txt'), text)
 
-    // A. Visuals
-    if (visualMode === 'video') {
-      sendLog('🎬 Video Mode. Copying background...')
-      if (!bgVideoPath || !fs.existsSync(bgVideoPath)) throw new Error('Background video missing!')
-      await fs.copy(bgVideoPath, join(folderPath, 'source_bg.mp4'))
-    } else {
-      const imagesDir = join(folderPath, 'images')
-      await fs.ensureDir(imagesDir)
-      let count = parseInt(imageCount) || 1
-      const finalPrompt = imagePrompt || 'Cinematic background, 8k'
-
-      sendLog(`🎨 Generating ${count} images...`)
-      const imgProvider = store.get('imageProvider') || 'free'
-      const imgToken = store.get('elevenLabsImgKey')
-
-      for (let i = 1; i <= count; i++) {
-        const imgPath = join(imagesDir, `scene_${i}.jpg`)
-        sendLog(`🎨 Image ${i}/${count}...`)
-        try {
-          if (imgProvider === 'eleven')
-            await generateElevenLabsImage(finalPrompt, imgToken, imgPath)
-          else await downloadPollinationsImage(finalPrompt, imgPath)
-          sendLog(`✅ Image ${i} saved.`)
-        } catch (e) {
-          console.error(`Image ${i} failed`, e)
-          sendLog(`⚠️ Image ${i} failed.`)
-        }
-        await sleep(1000)
-      }
-    }
-
-    // B. Audio
+    // 2. Generate Audio
     const audioPath = join(folderPath, 'audio.mp3')
+
+    // Вибір провайдера
     if (ttsProvider === 'genai') {
       await generateGenAiAudio(text, voice, store.get('genAiKey'), audioPath, sendLog)
     } else if (ttsProvider === '11labs') {
@@ -198,7 +163,7 @@ ipcMain.handle('generate-audio-only', async (event, data) => {
       await generateEdgeTtsAudio(text, voice, folderPath, audioPath, sendLog)
     }
 
-    // C. Subtitles
+    // 3. Generate Subtitles (Requires Audio to be ready)
     const srtPath = join(folderPath, 'subtitles.srt')
     if (makeSubtitles === true) {
       sendLog('📝 Generating Subtitles...')
@@ -210,14 +175,76 @@ ipcMain.handle('generate-audio-only', async (event, data) => {
       if (fs.existsSync(srtPath)) await fs.unlink(srtPath)
     }
 
-    // D. Render Video
+    return { success: true }
+  } catch (error) {
+    console.error('Audio Part Error:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+// PART B: IMAGES
+ipcMain.handle('generate-images-part', async (event, data) => {
+  const { imagePrompt, imageCount, folderPath } = data
+
+  try {
+    const imagesDir = join(folderPath, 'images')
+    await fs.ensureDir(imagesDir)
+
+    let count = parseInt(imageCount) || 1
+    const finalPrompt = imagePrompt || 'Cinematic background, 8k'
+
+    sendLog(`🎨 Generating ${count} images...`)
+
+    // Отримуємо налаштування провайдера картинок
+    const imgProvider = store.get('imageProvider') || 'free' // 'free' = pollinations, 'eleven' = GenAI/Eleven?
+    // У твоєму старому коді 'eleven' використовувався для generateElevenLabsImage, перевірте це
+    const imgToken = store.get('elevenLabsImgKey')
+
+    for (let i = 1; i <= count; i++) {
+      const imgPath = join(imagesDir, `scene_${i}.jpg`)
+      sendLog(`🎨 Image ${i}/${count}...`)
+      try {
+        if (imgProvider === 'eleven') {
+          await generateElevenLabsImage(finalPrompt, imgToken, imgPath)
+        } else {
+          await downloadPollinationsImage(finalPrompt, imgPath)
+        }
+        sendLog(`✅ Image ${i} saved.`)
+      } catch (e) {
+        console.error(`Image ${i} failed`, e)
+        sendLog(`⚠️ Image ${i} failed.`)
+      }
+      // Маленька пауза, щоб не банили API
+      await sleep(1000)
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Image Part Error:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+// PART C: RENDER VIDEO
+ipcMain.handle('render-video-part', async (event, data) => {
+  const { folderPath, visualMode, bgVideoPath } = data
+
+  try {
+    // Якщо режим відео - копіюємо бекграунд (це робилося раніше в загальній кучі)
+    if (visualMode === 'video') {
+      sendLog('🎬 Video Mode. Copying background...')
+      if (!bgVideoPath || !fs.existsSync(bgVideoPath)) throw new Error('Background video missing!')
+      await fs.copy(bgVideoPath, join(folderPath, 'source_bg.mp4'))
+    }
+
+    // Запускаємо фінальний рендер
     await createVideoFromProject(folderPath, visualMode, sendLog)
 
     sendLog('✅ All processes completed!')
     shell.openPath(folderPath)
     return { success: true }
   } catch (error) {
-    console.error('Process Error:', error)
+    console.error('Render Part Error:', error)
     return { success: false, error: error.message }
   }
 })

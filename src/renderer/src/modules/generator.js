@@ -285,7 +285,7 @@ async function startProcess() {
   }
 }
 
-// --- PROCESS: STEP 2 (AUDIO & MEDIA) ---
+// --- PROCESS: STEP 2 (AUDIO & MEDIA - PARALLEL) ---
 async function confirmAudioGeneration() {
   if (!tempGenerationData) return
 
@@ -297,30 +297,67 @@ async function confirmAudioGeneration() {
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> GENERATING MEDIA...'
 
   try {
-    const payload = {
-      text: finalUserData,
-      voice: tempGenerationData.voice,
-      ttsProvider: tempGenerationData.ttsProvider,
-      folderPath: tempGenerationData.folderPath,
-      imagePrompt: tempGenerationData.imagePrompt,
-      imageCount: tempGenerationData.imageCount,
-      makeSubtitles: tempGenerationData.makeSubtitles,
-      onePartStory: tempGenerationData.onePartStory,
-      language: tempGenerationData.language,
-      visualMode: tempGenerationData.visualMode,
-      bgVideoPath: tempGenerationData.bgVideoPath
+    updateStatusDisplay('🚀 Starting parallel generation...', 'processing')
+
+    // 1. ПІДГОТОВКА ЗАВДАНЬ
+
+    // --- ЗАВДАННЯ А: АУДІО + СУБТИТРИ ---
+    // 👇 ВИПРАВЛЕНО: window.api.generateAudioPart замість invoke
+    const audioTask = window.api
+      .generateAudioPart({
+        text: finalUserData,
+        voice: tempGenerationData.voice,
+        ttsProvider: tempGenerationData.ttsProvider,
+        folderPath: tempGenerationData.folderPath,
+        language: tempGenerationData.language,
+        makeSubtitles: tempGenerationData.makeSubtitles
+      })
+      .then((result) => {
+        if (!result.success) throw new Error('Audio Error: ' + result.error)
+        updateStatusDisplay('✅ Audio & Subtitles ready')
+        return result
+      })
+
+    // --- ЗАВДАННЯ Б: КАРТИНКИ ---
+    let imagesTask = Promise.resolve()
+
+    if (tempGenerationData.visualMode === 'images') {
+      // 👇 ВИПРАВЛЕНО: window.api.generateImagesPart замість invoke
+      imagesTask = window.api
+        .generateImagesPart({
+          imagePrompt: tempGenerationData.imagePrompt,
+          imageCount: tempGenerationData.imageCount,
+          folderPath: tempGenerationData.folderPath
+        })
+        .then((result) => {
+          if (!result.success) throw new Error('Images Error: ' + result.error)
+          updateStatusDisplay('✅ Images ready')
+          return result
+        })
     }
 
-    const result = await window.api.generateAudioOnly(payload)
+    // 2. ЧЕКАЄМО ОБИДВА ПРОЦЕСИ
+    await Promise.all([audioTask, imagesTask])
 
-    if (result.success) {
+    // 3. РЕНДЕР ВІДЕО
+    updateStatusDisplay('🎬 All assets ready. Rendering video...')
+
+    // 👇 ВИПРАВЛЕНО: window.api.renderVideoPart замість invoke
+    const videoResult = await window.api.renderVideoPart({
+      folderPath: tempGenerationData.folderPath,
+      visualMode: tempGenerationData.visualMode,
+      bgVideoPath: tempGenerationData.bgVideoPath
+    })
+
+    if (videoResult.success) {
       updateStatusDisplay('✅ Project fully completed!', 'success')
       showToast('Project Completed Successfully', 'success')
     } else {
-      updateStatusDisplay(`❌ Media Error: ${result.error}`, 'error')
+      updateStatusDisplay(`❌ Render Error: ${videoResult.error}`, 'error')
     }
   } catch (e) {
     updateStatusDisplay(`❌ Critical Error: ${e.message}`, 'error')
+    console.error(e)
   } finally {
     btn.disabled = false
     btn.innerHTML = '<i class="fa-solid fa-rocket"></i> <span>Start Generation</span>'

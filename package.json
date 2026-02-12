@@ -1,6 +1,6 @@
 {
   "name": "ywh",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "YwH program to create stories using Gemini AI and convert them to speech using TTS.",
   "main": "./out/main/index.js",
   "author": "Oleg",

@@ -2,8 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Electron</title>
-    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <title>StoryMaker</title>
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data:"
@@ -346,6 +345,7 @@
                 </div>
               </div>
             </div>
+
             <div id="lib-images" class="lib-panel">
               <div class="panel prompt-panel" style="height: 500px">
                 <div class="panel-header with-actions">
@@ -383,6 +383,7 @@
                 </div>
               </div>
             </div>
+
             <div id="lib-subtitles" class="lib-panel">
               <div class="panel prompt-panel">
                 <div class="panel-header with-actions">
@@ -392,7 +393,7 @@
                 <div class="panel-body">
                   <div class="form-grid">
                     <div class="form-group inp-color-group">
-                      <label>Active Text Color (Fill)</label>
+                      <label>Active Color (Fill)</label>
                       <div style="display: flex; align-items: center; gap: 10px">
                         <input
                           class="inp-color"
@@ -400,22 +401,22 @@
                           id="libSubColorActive"
                           value="#FFFF00"
                         />
-                        <span style="font-size: 12px; opacity: 0.7">Singing color</span>
+                        <span style="font-size: 12px; opacity: 0.7"></span>
                       </div>
                     </div>
 
-                    <div class="form-group inp-color-group visually-hidden">
-                      <label>Inactive Text Color (Base)</label>
+                    <!-- <div class="form-group inp-color-group">
+                      <label>Inactive Color (Base)</label>
                       <div style="display: flex; align-items: center; gap: 10px">
                         <input
                           class="inp-color"
                           type="color"
                           id="libSubColorInactive"
-                          value="#FFFFFF"
+                          value="#AAAAAA"
                         />
-                        <span style="font-size: 12px; opacity: 0.7">Waiting color</span>
+                        <span style="font-size: 12px; opacity: 0.7">Waiting (Inactive)</span>
                       </div>
-                    </div>
+                    </div> -->
 
                     <div class="form-group inp-color-group">
                       <label>Outline Color</label>
@@ -430,29 +431,56 @@
                     </div>
 
                     <div class="form-group">
+                      <label>Font Family (Installed)</label>
+                      <input
+                        type="text"
+                        id="libSubFont"
+                        placeholder="e.g. Arial, Impact, Roboto"
+                        value="Arial"
+                      />
+                      <p style="font-size: 10px; color: #666; margin-top: 3px">
+                        Use exact name of font installed on Windows.
+                      </p>
+                    </div>
+
+                    <div class="form-group">
                       <label>Font Size</label>
                       <input type="number" id="libSubSize" value="60" />
                     </div>
 
                     <div class="form-group">
-                      <label>Side Margins (Width limit)</label>
-                      <input type="number" id="libSubMarginSide" value="400" step="10" />
-                      <p style="font-size: 10px; color: #666">
-                        Higher = Narrower text column (e.g. 400-500 for TikTok)
+                      <label>Outline Width</label>
+                      <input type="number" id="libSubOutlineWidth" value="2" step="0.5" />
+                    </div>
+
+                    <div class="form-group">
+                      <label>Max Characters per Line</label>
+                      <input type="number" id="libSubMaxChars" value="30" />
+                      <p style="font-size: 10px; color: #666; margin-top: 3px">
+                        Controls width of the text block.
                       </p>
                     </div>
 
                     <div class="form-group">
-                      <label>Bottom Margin (Position)</label>
+                      <label>Side Margins</label>
+                      <input type="number" id="libSubMarginSide" value="400" step="10" />
+                    </div>
+
+                    <div class="form-group">
+                      <label>Bottom Margin</label>
                       <input type="number" id="libSubMarginBottom" value="150" step="10" />
-                      <p style="font-size: 10px; color: #666">Distance from bottom edge</p>
+                    </div>
+
+                    <!-- <div class="form-group checkbox-group">
+                      <label class="checkbox-label">Bold</label>
+                      <input class="inp-check" type="checkbox" id="libSubBold" />
                     </div>
 
                     <div class="form-group checkbox-group">
-                      <label class="checkbox-label">Italic Text</label>
+                      <label class="checkbox-label">Italic</label>
                       <input class="inp-check" type="checkbox" id="libSubItalic" />
                     </div>
-                  </div>
+                  </div> -->
 
                   <div style="margin-top: 30px; text-align: right">
                     <button id="btnSaveSubSettings" class="btn-primary">
@@ -483,7 +511,6 @@
             <h2>Settings</h2>
             <p class="description">Application configuration</p>
           </div>
-
           <div class="settings-container">
             <div class="settings-group">
               <div class="accordion-trigger">
@@ -499,35 +526,8 @@
                   </div>
                   <button id="btnSaveKey" class="btn-secondary">Save</button>
                 </div>
-
-                <div class="form-group mt-2">
-                  <label>GenAI Token (Optional)</label>
-                  <div class="password-wrapper">
-                    <input type="password" id="genAiKeyInput" />
-                    <i class="fa-solid fa-eye toggle-btn" id="btnToggleGenAiKey"></i>
-                  </div>
-                  <button id="btnSaveGenAiKey" class="btn-secondary">Save</button>
-                </div>
-                <div class="form-group mt-2">
-                  <label>11 Labs Audio Key (voiceapi)</label>
-                  <div class="password-wrapper">
-                    <input type="password" id="elevenLabsAudioKeyInput" />
-                    <i class="fa-solid fa-eye toggle-btn" id="btnToggleElevenAudioKey"></i>
-                  </div>
-                  <button id="btnSaveElevenAudioKey" class="btn-secondary">Save</button>
-                </div>
-
-                <div class="form-group mt-2">
-                  <label>11 Labs Image Token</label>
-                  <div class="password-wrapper">
-                    <input type="password" id="elevenLabsImgKeyInput" />
-                    <i class="fa-solid fa-eye toggle-btn" id="btnToggleElevenImgKey"></i>
-                  </div>
-                  <button id="btnSaveElevenLabsImgKey" class="btn-secondary">Save</button>
-                </div>
               </div>
             </div>
-
             <div class="settings-group">
               <div class="accordion-trigger">
                 <span><i class="fa-solid fa-folder"></i> Directories & Paths</span>
@@ -557,13 +557,6 @@
                     </button>
                   </div>
                 </div>
-
-                <div class="form-group visually-hidden">
-                  <label>Edge TTS Path</label>
-                  <input type="text" id="edgeTtsPathInput" />
-                  <button id="btnSaveEdgePath" class="btn-secondary mt-1">Save Path</button>
-                </div>
-
                 <div class="form-group mt-2">
                   <label>FFmpeg Path (.exe)</label>
                   <div class="input-row">
@@ -586,13 +579,9 @@
                       <i class="fa-solid fa-folder-open"></i>
                     </button>
                   </div>
-                  <p style="font-size: 11px; color: #666; margin-top: 5px">
-                    Select folder containing whisper.exe and ggml models.
-                  </p>
                 </div>
               </div>
             </div>
-
             <div class="settings-group">
               <div class="accordion-trigger">
                 <span><i class="fa-solid fa-microchip"></i> AI Engine</span>
@@ -612,11 +601,8 @@
                 <div class="form-group">
                   <label>Gemini Model</label>
                   <select id="modelSelect">
-                    <option value="gemini-2.0-flash">Gemini 2.0 Flash(Gemini Pro API key)</option>
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                    <option value="emini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-                    <option value="gemini-3-flash">Gemini 3 Flash</option>
-                    <option value="gemini-2.5-pro">Gemini 2.5 Pro(Gemini Pro API key)</option>
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                   </select>
                 </div>
                 <div class="form-group mt-2">
@@ -637,7 +623,6 @@
     </div>
 
     <div id="toast-container"></div>
-
     <div id="previewModal" class="modal-backdrop">
       <div class="modal-card" style="width: 600px; max-width: 90%">
         <div class="modal-head">
@@ -675,6 +660,7 @@
         </div>
       </div>
     </div>
+
     <script type="module" src="./src/renderer.js"></script>
   </body>
 </html>

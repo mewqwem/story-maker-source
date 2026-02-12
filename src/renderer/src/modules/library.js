@@ -48,18 +48,21 @@ async function initSubtitleSettings() {
   const btnSave = document.getElementById('btnSaveSubSettings')
   if (!btnSave) return
 
-  // 1. Завантажуємо налаштування (або дефолтні)
+  // 1. Дефолтні налаштування
   const defaults = {
-    activeColor: '#FFFF00',
-    inactiveColor: '#FFFFFF',
-    outlineColor: '#000000',
+    font: 'Arial',
     fontSize: 60,
+    activeColor: '#FFFF00', // Активний (яскравий)
+    inactiveColor: '#AAAAAA', // Неактивний (сірий)
+    outlineColor: '#000000',
+    outlineWidth: 2,
     marginSide: 400,
     marginBottom: 150,
-    italic: true
+    italic: true,
+    bold: false,
+    maxChars: 30 // Ширина тексту
   }
 
-  // ВИПРАВЛЕННЯ ТУТ: window.api.getSetting замість invoke
   const saved = (await window.api.getSetting('subtitleSettings')) || {}
   const settings = { ...defaults, ...saved }
 
@@ -73,13 +76,17 @@ async function initSubtitleSettings() {
     if (el) el.checked = val
   }
 
+  setVal('libSubFont', settings.font)
+  setVal('libSubSize', settings.fontSize)
   setVal('libSubColorActive', settings.activeColor)
   setVal('libSubColorInactive', settings.inactiveColor)
   setVal('libSubColorOutline', settings.outlineColor)
-  setVal('libSubSize', settings.fontSize)
+  setVal('libSubOutlineWidth', settings.outlineWidth)
   setVal('libSubMarginSide', settings.marginSide)
   setVal('libSubMarginBottom', settings.marginBottom)
+  setVal('libSubMaxChars', settings.maxChars) // Заповнюємо Max Chars
   setCheck('libSubItalic', settings.italic)
+  setCheck('libSubBold', settings.bold)
 
   // 3. Збереження
   btnSave.onclick = async () => {
@@ -87,16 +94,19 @@ async function initSubtitleSettings() {
     const getCheck = (id) => document.getElementById(id)?.checked
 
     const newSettings = {
+      font: getVal('libSubFont').trim(),
+      fontSize: parseInt(getVal('libSubSize')) || 60,
       activeColor: getVal('libSubColorActive'),
       inactiveColor: getVal('libSubColorInactive'),
       outlineColor: getVal('libSubColorOutline'),
-      fontSize: parseInt(getVal('libSubSize')) || 60,
+      outlineWidth: parseFloat(getVal('libSubOutlineWidth')) || 2,
       marginSide: parseInt(getVal('libSubMarginSide')) || 400,
       marginBottom: parseInt(getVal('libSubMarginBottom')) || 150,
-      italic: getCheck('libSubItalic')
+      maxChars: parseInt(getVal('libSubMaxChars')) || 30, // Зберігаємо Max Chars
+      italic: getCheck('libSubItalic'),
+      bold: getCheck('libSubBold')
     }
 
-    // ВИПРАВЛЕННЯ ТУТ: window.api.saveSetting замість invoke
     await window.api.saveSetting('subtitleSettings', newSettings)
     showToast('Subtitle style saved!', 'success')
   }

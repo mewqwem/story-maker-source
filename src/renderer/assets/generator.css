@@ -1,15 +1,16 @@
+/* Основна сітка на 3 колонки */
 .generator-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .step-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: 20px; /* Трохи зменшили внутрішній відступ */
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-sm);
@@ -64,18 +65,22 @@
   letter-spacing: 0.03em;
 }
 
-/* Template Selectors */
+/* Списки шаблонів */
 .templates-grid {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 240px;
   overflow-y: auto;
   background: var(--bg-input);
   padding: 8px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
 }
+/* Обмеження висоти, щоб не розтягувало колонку */
+.compact-grid {
+  max-height: 150px;
+}
+
 .empty-msg {
   padding: 10px;
   font-size: 12px;
@@ -107,22 +112,36 @@
   color: #fff;
 }
 
+/* НИЖНЯ СЕКЦІЯ: Кнопка + Термінал поруч */
+.generator-bottom-section {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 260px 1fr; /* Кнопка 260px, решта під термінал */
+  gap: 20px;
+  align-items: start;
+}
+
 .generator-actions {
-  margin-top: 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  margin-top: 0;
 }
 .btn-cta {
   width: 100%;
-  max-width: 320px;
   height: 48px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
 }
 #status-line {
   font-size: 13px;
   color: var(--text-dim);
+  text-align: center;
 }
-/* #endregion */
+
+/* Компактний термінал */
+.compact-terminal {
+  margin-top: 0 !important; /* Відміняємо старий відступ */
+  height: 160px !important; /* Робимо його акуратним */
+}

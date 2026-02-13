@@ -1,0 +1,38 @@
+<div id="toast-container"></div>
+<div id="previewModal" class="modal-backdrop">
+  <div class="modal-card" style="width: 600px; max-width: 90%">
+    <div class="modal-head">
+      <i class="fa-solid fa-pen-to-square"></i>
+      <h3>Edit Text Before Audio</h3>
+    </div>
+    <div class="modal-body" style="text-align: left">
+      <p style="margin-bottom: 10px; color: #aaa; font-size: 13px">
+        Review the generated story. What you edit here will be spoken.
+      </p>
+      <textarea
+        id="previewTextarea"
+        style="
+          width: 100%;
+          height: 300px;
+          background: #111;
+          color: #eee;
+          border: 1px solid #333;
+          padding: 10px;
+          resize: vertical;
+        "
+      ></textarea>
+      <div
+        id="charCountPreview"
+        style="text-align: right; font-size: 11px; color: #888; margin-top: 5px"
+      >
+        Symbols: 0
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button id="btnCancelPreview" class="btn-text">Cancel</button>
+      <button id="btnConfirmAudio" class="btn-primary">
+        <i class="fa-solid fa-microphone-lines"></i> Generate Audio
+      </button>
+    </div>
+  </div>
+</div>

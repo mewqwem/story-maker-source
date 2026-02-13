@@ -1,0 +1,128 @@
+.generator-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.step-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s;
+}
+.step-card:hover {
+  border-color: #3f3f46;
+}
+.step-card.full-height {
+  height: 100%;
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.step-badge {
+  background: rgba(79, 70, 229, 0.1);
+  color: #818cf8;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(79, 70, 229, 0.2);
+}
+
+.step-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.form-group:not(:last-child) {
+  margin-bottom: 16px;
+}
+.form-group label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Template Selectors */
+.templates-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--bg-input);
+  padding: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+.empty-msg {
+  padding: 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.template-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s;
+  font-size: 13px;
+  cursor: pointer;
+}
+.template-btn:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-main);
+}
+.template-btn.active {
+  background: rgba(79, 70, 229, 0.15);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.generator-actions {
+  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.btn-cta {
+  width: 100%;
+  max-width: 320px;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+}
+#status-line {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+/* #endregion */

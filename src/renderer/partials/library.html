@@ -1,0 +1,278 @@
+<section id="page-library" class="view">
+          <div class="view-header">
+            <h2>Library Manager</h2>
+            <p class="description">Manage your voices, story prompts and SEO templates.</p>
+          </div>
+
+          <div class="library-tabs">
+            <button class="lib-tab-btn active" data-lib-target="lib-voices">
+              <i class="fa-solid fa-microphone"></i> Voices
+            </button>
+            <button class="lib-tab-btn" data-lib-target="lib-stories">
+              <i class="fa-solid fa-file-code"></i> Story Prompts
+            </button>
+            <button class="lib-tab-btn" data-lib-target="lib-seo">
+              <i class="fa-solid fa-magnifying-glass-chart"></i> SEO Prompts
+            </button>
+            <button class="lib-tab-btn" data-lib-target="lib-images">
+              <i class="fa-solid fa-image"></i> Image Styles
+            </button>
+            <button class="lib-tab-btn" data-lib-target="lib-subtitles">
+              <i class="fa-solid fa-closed-captioning"></i> Subtitle Style
+            </button>
+          </div>
+
+          <div class="library-content-container">
+            <div id="lib-voices" class="lib-panel active">
+              <div class="library-grid-layout" style="grid-template-columns: 1fr">
+                <div class="panel voice-panel">
+                  <div class="panel-body">
+                    <div class="add-voice-form">
+                      <div class="input-row">
+                        <select
+                          id="favVoiceService"
+                          class="input-sm"
+                          style="width: 100px; margin-right: 5px"
+                        >
+                          <option value="genai">GenAI</option>
+                          <option value="11labs">11 Labs</option>
+                        </select>
+
+                        <input
+                          type="text"
+                          id="favVoiceName"
+                          placeholder="Name"
+                          class="input-sm flex-grow"
+                        />
+                        <select id="favVoiceLang" class="input-sm" style="width: 80px">
+                          <option value="en">EN</option>
+                          <option value="uk">UA</option>
+                          <option value="es">ES</option>
+                          <option value="de">DE</option>
+                          <option value="fr">FR</option>
+                        </select>
+                        <input
+                          type="text"
+                          id="favVoiceIdInput"
+                          placeholder="Voice ID"
+                          class="input-sm flex-grow"
+                        />
+                        <button id="btnAddFavorite" class="btn-icon primary">
+                          <i class="fa-solid fa-plus"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="scroll-list">
+                      <ul id="favoritesList" class="voice-list"></ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="lib-stories" class="lib-panel">
+              <div class="panel prompt-panel" style="height: 500px">
+                <div class="panel-header with-actions">
+                  <span>Story Templates</span>
+                </div>
+                <div class="prompt-editor-container">
+                  <div class="prompt-list-col">
+                    <button id="btnNewPrompt" class="btn-secondary full-width">+ New Key</button>
+                    <ul id="promptKeysList" class="keys-list"></ul>
+                  </div>
+                  <div class="prompt-edit-col">
+                    <div id="editorOverlay" class="overlay">Select a key</div>
+                    <div class="editor-toolbar">
+                      <input type="text" id="editPromptKey" />
+                      <div class="tool-btns">
+                        <button id="btnDeletePrompt" class="btn-icon danger">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                        <button id="btnSavePrompt" class="btn-icon primary">
+                          <i class="fa-solid fa-floppy-disk"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <textarea id="editPromptText"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="lib-seo" class="lib-panel">
+              <div class="panel prompt-panel" style="height: 500px">
+                <div class="panel-header with-actions">
+                  <span>SEO Templates</span>
+                </div>
+                <div class="prompt-editor-container">
+                  <div class="prompt-list-col">
+                    <button id="btnNewSeoPrompt" class="btn-secondary full-width">
+                      + New SEO Key
+                    </button>
+                    <ul id="seoPromptKeysList" class="keys-list"></ul>
+                  </div>
+                  <div class="prompt-edit-col">
+                    <div id="seoEditorOverlay" class="overlay">Select an SEO key</div>
+                    <div class="editor-toolbar">
+                      <input type="text" id="editSeoPromptKey" />
+                      <div class="tool-btns">
+                        <button id="btnDeleteSeoPrompt" class="btn-icon danger">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                        <button id="btnSaveSeoPrompt" class="btn-icon primary">
+                          <i class="fa-solid fa-floppy-disk"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <textarea id="editSeoPromptText"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="lib-images" class="lib-panel">
+              <div class="panel prompt-panel" style="height: 500px">
+                <div class="panel-header with-actions">
+                  <span>Image Style Templates</span>
+                </div>
+                <div class="prompt-editor-container">
+                  <div class="prompt-list-col">
+                    <button id="btnNewImagePrompt" class="btn-secondary full-width">
+                      + New Style
+                    </button>
+                    <ul id="imagePromptKeysList" class="keys-list"></ul>
+                  </div>
+                  <div class="prompt-edit-col">
+                    <div id="imageEditorOverlay" class="overlay">Select a style key</div>
+                    <div class="editor-toolbar">
+                      <input
+                        type="text"
+                        id="editImagePromptKey"
+                        placeholder="Key Name (e.g. Horror)"
+                      />
+                      <div class="tool-btns">
+                        <button id="btnDeleteImagePrompt" class="btn-icon danger">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                        <button id="btnSaveImagePrompt" class="btn-icon primary">
+                          <i class="fa-solid fa-floppy-disk"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      id="editImagePromptText"
+                      placeholder="Enter image prompt description..."
+                    ></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="lib-subtitles" class="lib-panel">
+              <div class="panel prompt-panel">
+                <div class="panel-header with-actions">
+                  <span>Karaoke Style Settings</span>
+                </div>
+
+                <div class="panel-body">
+                  <div class="form-grid">
+                    <div class="form-group inp-color-group">
+                      <label>Active Color (Fill)</label>
+                      <div style="display: flex; align-items: center; gap: 10px">
+                        <input
+                          class="inp-color"
+                          type="color"
+                          id="libSubColorActive"
+                          value="#FFFF00"
+                        />
+                        <span style="font-size: 12px; opacity: 0.7"></span>
+                      </div>
+                    </div>
+
+                    <!-- <div class="form-group inp-color-group">
+                      <label>Inactive Color (Base)</label>
+                      <div style="display: flex; align-items: center; gap: 10px">
+                        <input
+                          class="inp-color"
+                          type="color"
+                          id="libSubColorInactive"
+                          value="#AAAAAA"
+                        />
+                        <span style="font-size: 12px; opacity: 0.7">Waiting (Inactive)</span>
+                      </div>
+                    </div> -->
+
+                    <div class="form-group inp-color-group">
+                      <label>Outline Color</label>
+                      <div>
+                        <input
+                          class="inp-color"
+                          type="color"
+                          id="libSubColorOutline"
+                          value="#000000"
+                        />
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label>Font Family (Installed)</label>
+                      <input
+                        type="text"
+                        id="libSubFont"
+                        placeholder="e.g. Arial, Impact, Roboto"
+                        value="Arial"
+                      />
+                      <p style="font-size: 10px; color: #666; margin-top: 3px">
+                        Use exact name of font installed on Windows.
+                      </p>
+                    </div>
+
+                    <div class="form-group">
+                      <label>Font Size</label>
+                      <input type="number" id="libSubSize" value="60" />
+                    </div>
+
+                    <div class="form-group">
+                      <label>Outline Width</label>
+                      <input type="number" id="libSubOutlineWidth" value="2" step="0.5" />
+                    </div>
+
+                    <div class="form-group">
+                      <label>Max Characters per Line</label>
+                      <input type="number" id="libSubMaxChars" value="30" />
+                      <p style="font-size: 10px; color: #666; margin-top: 3px">
+                        Controls width of the text block.
+                      </p>
+                    </div>
+
+                    <div class="form-group">
+                      <label>Side Margins</label>
+                      <input type="number" id="libSubMarginSide" value="400" step="10" />
+                    </div>
+
+                    <div class="form-group">
+                      <label>Bottom Margin</label>
+                      <input type="number" id="libSubMarginBottom" value="150" step="10" />
+                    </div>
+
+                    <!-- <div class="form-group checkbox-group">
+                      <label class="checkbox-label">Bold</label>
+                      <input class="inp-check" type="checkbox" id="libSubBold" />
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                      <label class="checkbox-label">Italic</label>
+                      <input class="inp-check" type="checkbox" id="libSubItalic" />
+                    </div>
+                  </div> -->
+
+                  <div style="margin-top: 30px; text-align: right">
+                    <button id="btnSaveSubSettings" class="btn-primary">
+                      <i class="fa-solid fa-floppy-disk"></i> Save Style
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
